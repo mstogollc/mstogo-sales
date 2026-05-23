@@ -4,6 +4,7 @@ import { fetchPlaceProfile, type PlaceProfile } from "./_lib/places";
 import { fetchDataForSeoSnapshot, type DataForSeoSnapshot } from "./_lib/dataforseo";
 import { chat } from "./_lib/openai";
 import { MS2GO_BRAND, recommendPackage } from "./_lib/brand";
+import { currentUser, tryPersist } from "./_lib/supabase";
 
 interface AnalyzeBody {
   businessName?: string;
@@ -104,6 +105,62 @@ export default async (req: Request, _ctx: Context) => {
       () => fallbackNarrative(body, place, seo),
     );
 
+    // Best-effort persistence to Supabase. RLS-respecting (uses caller's JWT).
+    let leadId: string | null = null;
+    let analysisId: string | null = null;
+    const me = await currentUser(req);
+    if (me && body.businessName) {
+      await tryPersist("analyze-lead.lead", async () => {
+        const { data, error } = await me.client
+          .from("leads")
+          .insert({
+            owner_id: me.id,
+            business_name: body.businessName!,
+            website: body.website,
+            address: body.address,
+            city: body.city,
+            state: body.state,
+            status: "analyzed",
+            source: "analyze-lead",
+            notes: body.notes,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        leadId = data.id;
+      });
+      if (leadId) {
+        await tryPersist("analyze-lead.analysis", async () => {
+          const tierToPackage: Record<string, "basic" | "growth" | "premium"> = {
+            Basic: "basic",
+            Growth: "growth",
+            Premium: "premium",
+          };
+          const { data, error } = await me.client
+            .from("analyses")
+            .insert({
+              lead_id: leadId,
+              created_by: me.id,
+              source: "analyze-lead",
+              summary: ai.text,
+              raw: {
+                placeProfile: place,
+                seoSnapshot: seo,
+                recommendation: {
+                  tier: recommended.tier,
+                  package: tierToPackage[recommended.tier],
+                  price: recommended.price,
+                },
+              },
+            })
+            .select("id")
+            .single();
+          if (error) throw error;
+          analysisId = data.id;
+        });
+      }
+    }
+
     return ok({
       lead: {
         businessName: body.businessName,
@@ -112,6 +169,8 @@ export default async (req: Request, _ctx: Context) => {
         city: body.city,
         state: body.state,
       },
+      leadId,
+      analysisId,
       placeProfile: place,
       seoSnapshot: seo,
       recommendation: {

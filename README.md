@@ -14,6 +14,7 @@ All third-party calls live in `netlify/functions/_lib/*` so API keys never reach
 
 | Provider | Env var(s) | Used by |
 | --- | --- | --- |
+| **Supabase** (CRM, auth, RLS, audit log) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server) · `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (browser) | `analyze-lead`, `draft-email`, `send-email`, `proposal`, `qualify-lead`, `dashboard` |
 | Google Places (New) | `GOOGLE_PLACES_API_KEY` | `analyze-lead` |
 | DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | `analyze-lead` |
 | OpenAI | `OPENAI_API_KEY` | `analyze-lead`, `draft-email`, `rewrite`, `proposal`, `training-content` |
@@ -29,6 +30,25 @@ Paste this URL into the Dropbox Sign dashboard (Settings → API → Account Cal
 - Netlify fallback: `https://<site>.netlify.app/.netlify/functions/dropbox-sign-callback`
 
 The handler accepts `application/json`, `application/x-www-form-urlencoded`, and `multipart/form-data` payloads, always replies with the literal string `Hello API Event Received` (required by Dropbox Sign), and verifies the `event_hash` HMAC when `DROPBOX_SIGN_API_KEY` is set.
+
+## CRM database (Supabase)
+
+The full schema, RLS policies, and audit log live in
+[`supabase/migrations/20260523000000_init_crm_foundation.sql`](supabase/migrations/20260523000000_init_crm_foundation.sql).
+
+See [`docs/APPLY_MIGRATION.md`](docs/APPLY_MIGRATION.md) for the exact steps to
+apply it to project `izoveptctxypwmyvavyg`.
+
+Highlights:
+
+- Reps see only their own records (and any reps they sponsor) via RLS.
+- Super admins `mstogollc@gmail.com` and `admin@mstogollc.com` see everything.
+- `audit_log` is **append-only** — enforced by both RLS and a deny-update/delete trigger.
+- `sales` inserts automatically generate direct + sponsor-override commissions.
+  Defaults: new rep 15% direct, super-admins / Joe Pearce 25% direct + 10% override.
+- Live pipeline + earnings views (`v_pipeline_summary`, `v_commission_summary`).
+- `dashboard` function reads everything through the caller's JWT, so the
+  database — not the UI — decides what each rep can see.
 
 Every helper gracefully handles missing keys, no matches, and API errors — analysis and drafting continue to work with safe fallbacks so the rep is never blocked.
 

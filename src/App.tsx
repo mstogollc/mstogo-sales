@@ -3,6 +3,7 @@ import { LeadAnalyzer } from "./components/LeadAnalyzer";
 import { EmailComposer } from "./components/EmailComposer";
 import { ProposalBuilder } from "./components/ProposalBuilder";
 import { TrainingHub } from "./components/TrainingHub";
+import { PipelineDashboard } from "./components/PipelineDashboard";
 import type { AnalyzeResponse } from "./api";
 import { resolveRoute } from "./router";
 import { DocusignCallback } from "./pages/DocusignCallback";
@@ -11,9 +12,10 @@ import { GustoCallback } from "./pages/GustoCallback";
 import { Privacy } from "./pages/Privacy";
 import { Terms } from "./pages/Terms";
 
-type Tab = "leads" | "email" | "proposal" | "training";
+type Tab = "leads" | "email" | "proposal" | "training" | "pipeline";
 
 const TABS: Array<{ id: Tab; label: string }> = [
+  { id: "pipeline", label: "Pipeline" },
   { id: "leads", label: "Lead intel" },
   { id: "email", label: "Email" },
   { id: "proposal", label: "Proposal" },
@@ -21,7 +23,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
 ];
 
 const SalesApp: FC = () => {
-  const [tab, setTab] = useState<Tab>("leads");
+  const [tab, setTab] = useState<Tab>("pipeline");
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
 
   return (
@@ -52,6 +54,7 @@ const SalesApp: FC = () => {
       </nav>
 
       <main>
+        {tab === "pipeline" && <PipelineDashboard />}
         {tab === "leads" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
         {tab === "email" && <EmailComposer analysis={analysis} />}
         {tab === "proposal" && <ProposalBuilder analysis={analysis} />}

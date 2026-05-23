@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions";
 import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { chat } from "./_lib/openai";
 import { MS2GO_BRAND } from "./_lib/brand";
+import { currentUser, tryPersist } from "./_lib/supabase";
 
 interface DraftBody {
   businessName?: string;
@@ -12,6 +13,8 @@ interface DraftBody {
   recommendedTier?: "Basic" | "Growth" | "Premium";
   tone?: "warm" | "direct" | "consultative";
   intent?: "first_touch" | "follow_up" | "proposal_intro" | "discovery_recap";
+  leadId?: string;
+  prospectId?: string;
 }
 
 function fallbackEmail(body: DraftBody): { subject: string; text: string } {
@@ -83,6 +86,26 @@ export default async (req: Request, _ctx: Context) => {
   const subjectMatch = raw.match(/^Subject:\s*(.+)$/im);
   const subject = subjectMatch ? subjectMatch[1].trim() : fb.subject;
   const text = raw.replace(/^Subject:.*\n?/i, "").trim() || fb.text;
+
+  // Best-effort persistence — only when caller is authenticated and identified
+  // a lead/prospect to associate this draft with.
+  const me = await currentUser(req);
+  if (me && (body.leadId || body.prospectId)) {
+    await tryPersist("draft-email", async () => {
+      const { error } = await me.client.from("outreach_activity").insert({
+        owner_id: me.id,
+        lead_id: body.leadId ?? null,
+        prospect_id: body.prospectId ?? null,
+        channel: "email",
+        direction: "outbound",
+        subject,
+        body: text,
+        status: "draft",
+        metadata: { source: result.source, intent: body.intent ?? "first_touch" },
+      });
+      if (error) throw error;
+    });
+  }
 
   return ok({
     subject,

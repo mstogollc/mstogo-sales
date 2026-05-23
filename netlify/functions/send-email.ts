@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions";
 import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { sendEmail } from "./_lib/resend";
+import { currentUser, tryPersist } from "./_lib/supabase";
 
 interface SendBody {
   to?: string | string[];
@@ -10,6 +11,8 @@ interface SendBody {
   from?: string;
   replyTo?: string;
   kind?: "qualification" | "prospect" | "follow_up" | "proposal";
+  leadId?: string;
+  prospectId?: string;
 }
 
 function isEmail(value: string): boolean {
@@ -42,6 +45,24 @@ export default async (req: Request, _ctx: Context) => {
     from: body.from,
     replyTo: body.replyTo,
   });
+
+  const me = await currentUser(req);
+  if (me) {
+    await tryPersist("send-email", async () => {
+      const { error } = await me.client.from("outreach_activity").insert({
+        owner_id: me.id,
+        lead_id: body.leadId ?? null,
+        prospect_id: body.prospectId ?? null,
+        channel: "email",
+        direction: "outbound",
+        subject: body.subject,
+        body: body.text,
+        status: typeof result === "object" && result && "status" in result ? String((result as { status: unknown }).status) : "sent",
+        metadata: { to: recipients, kind: body.kind ?? "prospect" },
+      });
+      if (error) throw error;
+    });
+  }
 
   return ok({
     kind: body.kind || "prospect",

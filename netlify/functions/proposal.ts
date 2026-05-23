@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions";
 import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { chat } from "./_lib/openai";
 import { MS2GO_BRAND, recommendPackage } from "./_lib/brand";
+import { currentUser, tryPersist } from "./_lib/supabase";
 
 interface ProposalBody {
   businessName?: string;
@@ -13,6 +14,8 @@ interface ProposalBody {
   recommendedTier?: "Basic" | "Growth" | "Premium";
   rep?: { name?: string; email?: string };
   goals?: string;
+  leadId?: string;
+  prospectId?: string;
 }
 
 function fallbackProposal(body: ProposalBody): string {
@@ -101,8 +104,43 @@ export default async (req: Request, _ctx: Context) => {
     () => fallbackProposal(body),
   );
 
+  let proposalId: string | null = null;
+  const me = await currentUser(req);
+  if (me) {
+    const tierToPackage: Record<string, "basic" | "growth" | "premium"> = {
+      Basic: "basic",
+      Growth: "growth",
+      Premium: "premium",
+    };
+    const pkg = tierToPackage[recommended.tier] ?? "growth";
+    await tryPersist("proposal", async () => {
+      const { data, error } = await me.client
+        .from("proposals")
+        .insert({
+          owner_id: me.id,
+          lead_id: body.leadId ?? null,
+          prospect_id: body.prospectId ?? null,
+          package: pkg,
+          monthly_price: recommended.price,
+          status: "draft",
+          metadata: {
+            business_name: body.businessName,
+            contact_name: body.contactName,
+            goals: body.goals,
+            tier: recommended.tier,
+            source: result.source,
+          },
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      proposalId = data.id;
+    });
+  }
+
   return ok({
     proposal: result.text,
+    proposalId,
     source: result.source,
     recommendation: {
       tier: recommended.tier,
