@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const inserts: unknown[] = [];
 
-vi.mock("./_lib/supabase", () => {
+vi.mock("../../netlify/functions/_lib/supabase", () => {
   const client = {
     from(_table: string) {
       const q: any = {};
@@ -34,7 +34,7 @@ describe("qualify-lead handler", () => {
   let handler: (req: Request, ctx: any) => Promise<Response>;
   beforeEach(async () => {
     inserts.length = 0;
-    handler = (await import("./qualify-lead")).default;
+    handler = (await import("../../netlify/functions/qualify-lead")).default;
   });
 
   it("rejects non-POST", async () => {

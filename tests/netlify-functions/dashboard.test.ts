@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock the supabase helper module before importing the handler.
-vi.mock("./_lib/supabase", () => {
+vi.mock("../../netlify/functions/_lib/supabase", () => {
   const client = {
     from(_table: string) {
       const q: any = {};
@@ -33,7 +33,7 @@ const ctx: any = {};
 describe("dashboard handler", () => {
   let handler: (req: Request, ctx: any) => Promise<Response>;
   beforeEach(async () => {
-    handler = (await import("./dashboard")).default;
+    handler = (await import("../../netlify/functions/dashboard")).default;
   });
 
   it("rejects non-GET", async () => {
