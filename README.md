@@ -19,6 +19,16 @@ All third-party calls live in `netlify/functions/_lib/*` so API keys never reach
 | OpenAI | `OPENAI_API_KEY` | `analyze-lead`, `draft-email`, `rewrite`, `proposal`, `training-content` |
 | Resend | `RESEND_API_KEY`, optional `MS2GO_FROM_EMAIL`, `MS2GO_REPLY_TO` | `send-email` |
 | Calendly | `CALENDLY_PERSONAL_ACCESS_TOKEN` | (reserved for booking flow) |
+| Dropbox Sign | `DROPBOX_SIGN_API_KEY` | `dropbox-sign-callback` |
+
+### Dropbox Sign account callback
+
+Paste this URL into the Dropbox Sign dashboard (Settings → API → Account Callback):
+
+- Production: `https://portal.mstogo.com/.netlify/functions/dropbox-sign-callback`
+- Netlify fallback: `https://<site>.netlify.app/.netlify/functions/dropbox-sign-callback`
+
+The handler accepts `application/json`, `application/x-www-form-urlencoded`, and `multipart/form-data` payloads, always replies with the literal string `Hello API Event Received` (required by Dropbox Sign), and verifies the `event_hash` HMAC when `DROPBOX_SIGN_API_KEY` is set.
 
 Every helper gracefully handles missing keys, no matches, and API errors — analysis and drafting continue to work with safe fallbacks so the rep is never blocked.
 
