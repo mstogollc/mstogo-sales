@@ -7,6 +7,7 @@ import type { AnalyzeResponse } from "./api";
 import { resolveRoute } from "./router";
 import { DocusignCallback } from "./pages/DocusignCallback";
 import { DocusignConsentComplete } from "./pages/DocusignConsentComplete";
+import { GustoCallback } from "./pages/GustoCallback";
 import { Privacy } from "./pages/Privacy";
 import { Terms } from "./pages/Terms";
 
@@ -69,6 +70,8 @@ export const App: FC = () => {
       return <DocusignCallback />;
     case "docusign-consent-complete":
       return <DocusignConsentComplete />;
+    case "gusto-callback":
+      return <GustoCallback />;
     case "privacy":
       return <Privacy />;
     case "terms":

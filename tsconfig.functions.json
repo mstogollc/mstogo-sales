@@ -13,5 +13,9 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["netlify/functions/**/*.ts", "netlify/functions/**/*.test.ts"]
+  "include": [
+    "netlify/functions/**/*.ts",
+    "netlify/functions/**/*.test.ts",
+    "tests/netlify-functions/**/*.ts"
+  ]
 }

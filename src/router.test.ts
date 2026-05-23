@@ -10,6 +10,11 @@ describe("resolveRoute", () => {
     expect(resolveRoute("/docusign/consent-complete")).toBe("docusign-consent-complete");
   });
 
+  it("maps gusto callback path", () => {
+    expect(resolveRoute("/gusto/oauth/callback")).toBe("gusto-callback");
+    expect(resolveRoute("/Gusto/OAuth/Callback/")).toBe("gusto-callback");
+  });
+
   it("maps privacy and terms", () => {
     expect(resolveRoute("/privacy")).toBe("privacy");
     expect(resolveRoute("/terms")).toBe("terms");

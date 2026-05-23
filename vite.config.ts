@@ -14,6 +14,10 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["netlify/functions/**/*.test.ts", "src/**/*.test.ts"],
+    include: [
+      "netlify/functions/**/*.test.ts",
+      "src/**/*.test.ts",
+      "tests/**/*.test.ts",
+    ],
   },
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import handler from "./dropbox-sign-callback";
-import { DROPBOX_SIGN_ACK } from "./_lib/dropbox-sign";
+import handler from "../../netlify/functions/dropbox-sign-callback";
+import { DROPBOX_SIGN_ACK } from "../../netlify/functions/_lib/dropbox-sign";
 
 const ORIGINAL_KEY = process.env.DROPBOX_SIGN_API_KEY;
 
