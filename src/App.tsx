@@ -4,6 +4,11 @@ import { EmailComposer } from "./components/EmailComposer";
 import { ProposalBuilder } from "./components/ProposalBuilder";
 import { TrainingHub } from "./components/TrainingHub";
 import type { AnalyzeResponse } from "./api";
+import { resolveRoute } from "./router";
+import { DocusignCallback } from "./pages/DocusignCallback";
+import { DocusignConsentComplete } from "./pages/DocusignConsentComplete";
+import { Privacy } from "./pages/Privacy";
+import { Terms } from "./pages/Terms";
 
 type Tab = "leads" | "email" | "proposal" | "training";
 
@@ -14,7 +19,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "training", label: "Training" },
 ];
 
-export const App: FC = () => {
+const SalesApp: FC = () => {
   const [tab, setTab] = useState<Tab>("leads");
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
 
@@ -53,4 +58,23 @@ export const App: FC = () => {
       </main>
     </div>
   );
+};
+
+export const App: FC = () => {
+  const pathname = typeof window === "undefined" ? "/" : window.location.pathname;
+  const route = resolveRoute(pathname);
+
+  switch (route) {
+    case "docusign-callback":
+      return <DocusignCallback />;
+    case "docusign-consent-complete":
+      return <DocusignConsentComplete />;
+    case "privacy":
+      return <Privacy />;
+    case "terms":
+      return <Terms />;
+    case "app":
+    default:
+      return <SalesApp />;
+  }
 };
