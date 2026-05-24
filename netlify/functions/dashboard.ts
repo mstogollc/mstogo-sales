@@ -10,6 +10,16 @@ import { currentUser } from "./_lib/supabase";
  * Returns zeros and empty arrays when the caller is unauthenticated so the
  * dashboard UI can still render a sign-in state without errors.
  */
+
+type SupabaseError = { code?: string | null; message?: string | null } | null | undefined;
+
+export function isSchemaCacheMissError(err: SupabaseError): boolean {
+  if (!err) return false;
+  if (err.code === "PGRST205") return true;
+  const msg = (err.message ?? "").toLowerCase();
+  return msg.includes("could not find the table") || msg.includes("could not find table");
+}
+
 export default async (req: Request, _ctx: Context) => {
   if (req.method !== "GET") return methodNotAllowed(["GET"]);
 
@@ -37,9 +47,20 @@ export default async (req: Request, _ctx: Context) => {
       me.client.from("v_pipeline_summary").select("*"),
     ]);
 
-    const firstError = [leadsRes, prospectsRes, proposalsRes, salesRes, activityRes, commissionsRes, pipelineRes].find(
-      (r) => "error" in r && r.error,
-    );
+    const allResults = [leadsRes, prospectsRes, proposalsRes, salesRes, activityRes, commissionsRes, pipelineRes];
+
+    const schemaMiss = allResults.find((r) => "error" in r && isSchemaCacheMissError(r.error as SupabaseError));
+    if (schemaMiss && "error" in schemaMiss && schemaMiss.error) {
+      const detail = (schemaMiss.error as { message?: string }).message ?? "";
+      return json(503, {
+        error: "crm_setup_required",
+        code: "PGRST205",
+        detail,
+        user: { id: me.id, email: me.email },
+      });
+    }
+
+    const firstError = allResults.find((r) => "error" in r && r.error);
     if (firstError && "error" in firstError && firstError.error) {
       return json(400, { error: firstError.error.message });
     }

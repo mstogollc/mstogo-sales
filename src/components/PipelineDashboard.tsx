@@ -18,31 +18,93 @@ interface DashboardData {
   }>;
 }
 
+const ADMIN_EMAILS = new Set(["mstogollc@gmail.com", "admin@mstogo.com", "joe@mstogo.com"]);
+
+const MIGRATION_FILES = [
+  "supabase/migrations/20260523000000_init_crm_foundation.sql",
+  "supabase/migrations/20260524000000_rep_payout_accounts.sql",
+];
+
+function isMissingTableMessage(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("pgrst205") || m.includes("could not find the table") || m.includes("could not find table");
+}
+
+function supabaseSqlEditorUrl(): string | null {
+  const url = (import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+  try {
+    const u = new URL(url);
+    const host = u.hostname;
+    const m = /^([^.]+)\.supabase\.(co|in)$/.exec(host);
+    if (!m) return null;
+    return `https://supabase.com/dashboard/project/${m[1]}/sql/new`;
+  } catch {
+    return null;
+  }
+}
+
 export const PipelineDashboard: FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [setupRequired, setSetupRequired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [authed, setAuthed] = useState(false);
   const [authMsg, setAuthMsg] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => setAuthed(Boolean(data.session)));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setAuthed(Boolean(s)));
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthed(Boolean(data.session));
+      setUserEmail(data.session?.user.email ?? null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setAuthed(Boolean(s));
+      setUserEmail(s?.user.email ?? null);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     if (!authed) return;
     setLoading(true);
+    setError(null);
+    setSetupRequired(false);
     (async () => {
       try {
         const res = await fetch("/api/dashboard", { headers: await authHeader() });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
-        setData((await res.json()) as DashboardData);
+        const payload = (await res.json().catch(() => ({}))) as
+          | (DashboardData & { error?: undefined })
+          | { error: string; code?: string; detail?: string; user?: { email: string | null } };
+
+        if (!res.ok) {
+          const errMsg = (payload as { error?: string }).error ?? res.statusText;
+          const code = (payload as { code?: string }).code;
+          const detail = (payload as { detail?: string }).detail ?? "";
+          if (
+            res.status === 503 ||
+            code === "PGRST205" ||
+            errMsg === "crm_setup_required" ||
+            isMissingTableMessage(errMsg) ||
+            isMissingTableMessage(detail)
+          ) {
+            setSetupRequired(true);
+            const respUser = (payload as { user?: { email: string | null } }).user;
+            if (respUser?.email) setUserEmail(respUser.email);
+            return;
+          }
+          throw new Error(errMsg);
+        }
+
+        setData(payload as DashboardData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load dashboard.");
+        const message = err instanceof Error ? err.message : "Could not load dashboard.";
+        if (isMissingTableMessage(message)) {
+          setSetupRequired(true);
+        } else {
+          setError(message);
+        }
       } finally {
         setLoading(false);
       }
@@ -93,11 +155,17 @@ export const PipelineDashboard: FC = () => {
   }
 
   if (loading) return <p className="muted">Loading your numbers…</p>;
+
+  if (setupRequired) {
+    return <SetupNeeded userEmail={userEmail} />;
+  }
+
   if (error) {
     return (
       <section className="card">
         <h2>Couldn't load your dashboard</h2>
-        <p className="error">{error}</p>
+        <p className="muted">We hit an unexpected error while loading your numbers. Try refreshing in a minute — the other tabs (Lead Intel, Email, Proposal, Training, Payouts) still work in the meantime.</p>
+        <p className="error" style={{ opacity: 0.7 }}>{error}</p>
       </section>
     );
   }
@@ -179,6 +247,105 @@ export const PipelineDashboard: FC = () => {
         )}
       </section>
     </>
+  );
+};
+
+const SetupNeeded: FC<{ userEmail: string | null }> = ({ userEmail }) => {
+  const isAdmin = userEmail ? ADMIN_EMAILS.has(userEmail.toLowerCase()) : false;
+  const sqlEditor = supabaseSqlEditorUrl();
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function copy(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(label);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      setCopied(null);
+    }
+  }
+
+  return (
+    <section className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div>
+          <h2>Pipeline</h2>
+          <p className="subtitle">
+            {userEmail ? <>Signed in as {userEmail}.</> : <>Signed in.</>}
+          </p>
+        </div>
+        <button className="ghost" onClick={() => supabase?.auth.signOut()}>Sign out</button>
+      </div>
+
+      <div
+        className="indicator yellow"
+        style={{ marginTop: 4, marginBottom: 12 }}
+      >
+        <span className="dot" />
+        CRM database setup pending
+      </div>
+
+      <p className="branded-body" style={{ marginTop: 0 }}>
+        CRM database setup is pending. Apply the Supabase migrations to activate
+        pipeline, commissions, audit log, and payout storage.
+      </p>
+      <p className="muted">
+        In the meantime, the rest of the portal still works — switch tabs above
+        to use <strong>Lead Intel</strong>, <strong>Email</strong>,{" "}
+        <strong>Proposal</strong>, <strong>Training</strong>, and{" "}
+        <strong>Payouts</strong>.
+      </p>
+
+      {isAdmin && (
+        <>
+          <div className="divider" />
+          <h3 className="section-title" style={{ marginTop: 0 }}>Admin: apply migrations</h3>
+          <p className="branded-body" style={{ marginTop: 0 }}>
+            Run these migration files in the Supabase SQL editor, in order:
+          </p>
+          <ul className="signal-list" style={{ marginBottom: 12 }}>
+            {MIGRATION_FILES.map((f) => (
+              <li key={f}>
+                <span className="label" style={{ flex: 1, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontWeight: 500 }}>{f}</span>
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => copy(f, f)}
+                  aria-label={`Copy ${f}`}
+                >
+                  {copied === f ? "Copied" : "Copy path"}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="actions">
+            {sqlEditor && (
+              <a
+                className="branded-button branded-button-primary"
+                href={sqlEditor}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open Supabase SQL editor
+              </a>
+            )}
+            {sqlEditor && (
+              <button
+                className="branded-button branded-button-ghost"
+                type="button"
+                onClick={() => copy(sqlEditor, "sql-editor")}
+              >
+                {copied === "sql-editor" ? "Link copied" : "Copy editor link"}
+              </button>
+            )}
+          </div>
+          <p className="muted" style={{ marginTop: 12 }}>
+            After running both migrations, return to this tab and refresh —
+            pipeline, commissions, and audit log will activate automatically.
+          </p>
+        </>
+      )}
+    </section>
   );
 };
 
