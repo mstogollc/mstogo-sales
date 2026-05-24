@@ -26,7 +26,7 @@ export const PipelineDashboard: FC = () => {
   const [authMsg, setAuthMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabaseConfigured) return;
+    if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setAuthed(Boolean(data.session)));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setAuthed(Boolean(s)));
     return () => sub.subscription.unsubscribe();
@@ -51,6 +51,10 @@ export const PipelineDashboard: FC = () => {
   async function sendLink(e: React.FormEvent) {
     e.preventDefault();
     setAuthMsg(null);
+    if (!supabase) {
+      setAuthMsg("Sign-in is unavailable because Supabase isn't configured for this build.");
+      return;
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
@@ -110,7 +114,7 @@ export const PipelineDashboard: FC = () => {
             <h2>Pipeline</h2>
             <p className="subtitle">Signed in as {data.user.email ?? "rep"}.</p>
           </div>
-          <button className="ghost" onClick={() => supabase.auth.signOut()}>Sign out</button>
+          <button className="ghost" onClick={() => supabase?.auth.signOut()}>Sign out</button>
         </div>
         <div className="row">
           <Metric label="Leads" value={data.counts.leads} />
