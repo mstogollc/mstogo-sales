@@ -1,5 +1,6 @@
 import { useEffect, useState, type FC } from "react";
 import { supabase, supabaseConfigured, authHeader } from "../lib/supabase";
+import { getAuthRedirect } from "../lib/authRedirect";
 
 interface DashboardData {
   user: { id: string; email: string | null };
@@ -57,7 +58,7 @@ export const PipelineDashboard: FC = () => {
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+      options: { emailRedirectTo: getAuthRedirect() },
     });
     setAuthMsg(error ? error.message : "Check your inbox for a sign-in link.");
   }
