@@ -360,7 +360,7 @@ as $$
     false
   )
   or coalesce(
-    (select email in ('mstogollc@gmail.com','admin@mstogollc.com') from public.profiles where id = uid),
+    (select email in ('mstogollc@gmail.com','admin@mstogo.com') from public.profiles where id = uid),
     false
   );
 $$;
@@ -498,8 +498,11 @@ declare
   v_rate numeric(5,4) := 0.15;
   v_override numeric(5,4) := 0.00;
 begin
-  if new.email in ('mstogollc@gmail.com','admin@mstogollc.com') then
+  if new.email in ('mstogollc@gmail.com','admin@mstogo.com') then
     v_role := 'super_admin';
+    v_rate := 0.25;
+    v_override := 0.10;
+  elsif new.email = 'joe@mstogo.com' then
     v_rate := 0.25;
     v_override := 0.10;
   end if;

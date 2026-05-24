@@ -2,10 +2,10 @@ export const MS2GO_BRAND = {
   primaryRep: {
     name: "Joe Pearce",
     title: "Sales Lead, MS2GO",
-    defaultEmail: "joe@ms2go.com",
+    defaultEmail: "joe@mstogo.com",
   },
   defaultFromEmail: "sales@ms2go.com",
-  defaultReplyTo: "joe@ms2go.com",
+  defaultReplyTo: "joe@mstogo.com",
   packages: [
     {
       tier: "Basic",

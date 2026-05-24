@@ -59,7 +59,7 @@ apply it to project `izoveptctxypwmyvavyg`.
 Highlights:
 
 - Reps see only their own records (and any reps they sponsor) via RLS.
-- Super admins `mstogollc@gmail.com` and `admin@mstogollc.com` see everything.
+- Super admins `mstogollc@gmail.com` and `admin@mstogo.com` see everything.
 - `audit_log` is **append-only** — enforced by both RLS and a deny-update/delete trigger.
 - `sales` inserts automatically generate direct + sponsor-override commissions.
   Defaults: new rep 15% direct, super-admins / Joe Pearce 25% direct + 10% override.
@@ -89,4 +89,4 @@ For end-to-end local testing with functions, use `netlify dev`.
 | Growth | $750/mo | Active demand generation |
 | Premium | $2,000/mo | Full sales acceleration |
 
-Primary rep: **Joe Pearce** (`joe@ms2go.com`).
+Primary rep: **Joe Pearce** (`joe@mstogo.com`).

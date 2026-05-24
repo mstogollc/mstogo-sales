@@ -46,7 +46,7 @@ The `handle_new_user()` trigger automatically promotes the two configured
 super-admin emails the first time they sign in:
 
 - `mstogollc@gmail.com` — Justin Pearce
-- `admin@mstogollc.com`
+- `admin@mstogo.com`
 
 Both are created with role `super_admin`, 25% direct commission and 10%
 override. If they already existed in `auth.users` before the migration was
@@ -57,20 +57,21 @@ update public.profiles
    set role = 'super_admin',
        commission_rate = 0.25,
        override_rate   = 0.10
- where email in ('mstogollc@gmail.com','admin@mstogollc.com');
+ where email in ('mstogollc@gmail.com','admin@mstogo.com');
 ```
 
 ## Bootstrapping Joe Pearce
 
 Joe is the primary sales rep — 25% direct on his own sales + 10% override on
-sponsored reps. After he signs in once, run:
+sponsored reps. The `handle_new_user()` trigger applies these rates
+automatically the first time `joe@mstogo.com` signs in. If his profile already
+exists, run this once to align his rates:
 
 ```sql
 update public.profiles
-   set role = 'senior_rep',
-       commission_rate = 0.25,
+   set commission_rate = 0.25,
        override_rate   = 0.10
- where email = '<joe@his-email.com>';
+ where email = 'joe@mstogo.com';
 ```
 
 New reps default to **15% direct, 0% override**.
@@ -81,7 +82,7 @@ When a new rep is recruited under Joe (or any sponsor), set their `sponsor_id`:
 
 ```sql
 update public.profiles
-   set sponsor_id = (select id from public.profiles where email = '<joe>')
+   set sponsor_id = (select id from public.profiles where email = 'joe@mstogo.com')
  where email = '<new-rep>';
 ```
 

@@ -36,7 +36,7 @@ describe("sendEmail()", () => {
   it("sends when configured and uses MS2GO_FROM_EMAIL when present", async () => {
     process.env.RESEND_API_KEY = "re-test";
     process.env.MS2GO_FROM_EMAIL = "sales@ms2go.com";
-    process.env.MS2GO_REPLY_TO = "joe@ms2go.com";
+    process.env.MS2GO_REPLY_TO = "joe@mstogo.com";
     let capturedBody = "";
     const fakeFetch = (async (_url: string, init: RequestInit) => {
       capturedBody = init.body as string;
@@ -50,7 +50,7 @@ describe("sendEmail()", () => {
     if (result.status === "sent") expect(result.id).toBe("email_123");
     const parsed = JSON.parse(capturedBody);
     expect(parsed.from).toBe("sales@ms2go.com");
-    expect(parsed.reply_to).toBe("joe@ms2go.com");
+    expect(parsed.reply_to).toBe("joe@mstogo.com");
     expect(parsed.to).toEqual(["lead@example.com"]);
   });
 
