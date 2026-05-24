@@ -21,6 +21,7 @@ All third-party calls live in `netlify/functions/_lib/*` so API keys never reach
 | Resend | `RESEND_API_KEY`, optional `MS2GO_FROM_EMAIL`, `MS2GO_REPLY_TO` | `send-email` |
 | Calendly | `CALENDLY_PERSONAL_ACCESS_TOKEN` | (reserved for booking flow) |
 | Dropbox Sign | `DROPBOX_SIGN_API_KEY` | `dropbox-sign-callback` |
+| **Plaid** (rep direct-deposit verification) | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` | `plaid-create-link-token`, `plaid-exchange-token` |
 
 ### Dropbox Sign account callback
 
@@ -30,6 +31,22 @@ Paste this URL into the Dropbox Sign dashboard (Settings → API → Account Cal
 - Netlify fallback: `https://<site>.netlify.app/.netlify/functions/dropbox-sign-callback`
 
 The handler accepts `application/json`, `application/x-www-form-urlencoded`, and `multipart/form-data` payloads, always replies with the literal string `Hello API Event Received` (required by Dropbox Sign), and verifies the `event_hash` HMAC when `DROPBOX_SIGN_API_KEY` is set.
+
+### Plaid — rep payout onboarding
+
+Independent contractor sales reps connect a bank account so MS2GO can route commission direct deposit. The integration uses only the **Auth** and **Identity** products in **US / en**, and never exposes raw routing/account numbers or the access token to the browser.
+
+- `POST /.netlify/functions/plaid-create-link-token` → `{ link_token, expiration }`. Requires an authenticated Supabase user (Bearer JWT) unless a `client_user_id` is supplied for unauthenticated demos.
+- `POST /.netlify/functions/plaid-exchange-token` with `{ public_token, institution_name?, expected_owner_name? }` → `{ persisted, summary }`. The handler:
+  1. Exchanges the public token server-side for an access token (kept server-only).
+  2. Calls `/auth/get` and best-effort `/identity/get`.
+  3. Resolves the institution name when available.
+  4. Returns a safe verification summary: institution, account `mask` (last4), type/subtype, ACH-eligible flag, owner-match level (`match` / `partial` / `mismatch` / `unknown`), and overall `status` (`verified` / `needs_review` / `unverified`).
+  5. When Supabase service role is configured, upserts the summary into `public.rep_payout_accounts` (RLS lets reps see only their own row; the `access_token` column is service-role-only).
+
+`PLAID_ENV` selects the host: `sandbox` → `sandbox.plaid.com`, `development` → `development.plaid.com`, `production` → `production.plaid.com`. Sandbox test creds inside Link: `user_good` / `pass_good`.
+
+The branded UI lives under the **Payouts** tab (`<PayoutSetup />`) and loads Plaid Link from `cdn.plaid.com` on demand so the main bundle stays small.
 
 ## CRM database (Supabase)
 

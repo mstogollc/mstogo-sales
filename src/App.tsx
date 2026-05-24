@@ -4,6 +4,7 @@ import { EmailComposer } from "./components/EmailComposer";
 import { ProposalBuilder } from "./components/ProposalBuilder";
 import { TrainingHub } from "./components/TrainingHub";
 import { PipelineDashboard } from "./components/PipelineDashboard";
+import { PayoutSetup } from "./components/PayoutSetup";
 import type { AnalyzeResponse } from "./api";
 import { resolveRoute } from "./router";
 import { DocusignCallback } from "./pages/DocusignCallback";
@@ -12,7 +13,7 @@ import { GustoCallback } from "./pages/GustoCallback";
 import { Privacy } from "./pages/Privacy";
 import { Terms } from "./pages/Terms";
 
-type Tab = "leads" | "email" | "proposal" | "training" | "pipeline";
+type Tab = "leads" | "email" | "proposal" | "training" | "pipeline" | "payouts";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "pipeline", label: "Pipeline" },
@@ -20,6 +21,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "email", label: "Email" },
   { id: "proposal", label: "Proposal" },
   { id: "training", label: "Training" },
+  { id: "payouts", label: "Payouts" },
 ];
 
 const SalesApp: FC = () => {
@@ -59,6 +61,7 @@ const SalesApp: FC = () => {
         {tab === "email" && <EmailComposer analysis={analysis} />}
         {tab === "proposal" && <ProposalBuilder analysis={analysis} />}
         {tab === "training" && <TrainingHub />}
+        {tab === "payouts" && <PayoutSetup />}
       </main>
     </div>
   );
