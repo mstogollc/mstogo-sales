@@ -1,77 +1,100 @@
-import { useState, type FC } from "react";
+import { useEffect, useState, type FC } from "react";
 import { LeadAnalyzer } from "./components/LeadAnalyzer";
+import { LeadListGenerator } from "./components/LeadListGenerator";
 import { EmailComposer } from "./components/EmailComposer";
 import { ProposalBuilder } from "./components/ProposalBuilder";
 import { TrainingHub } from "./components/TrainingHub";
 import { PipelineDashboard } from "./components/PipelineDashboard";
 import { PayoutSetup } from "./components/PayoutSetup";
+import { CommandCenter } from "./components/CommandCenter";
+import { IntegrationsHub } from "./components/IntegrationsHub";
+import { SalesOpsLayout, type SalesOpsModuleId } from "./components/SalesOpsLayout";
 import type { AnalyzeResponse } from "./api";
-import { resolveRoute } from "./router";
+import { pathForModule, resolveRoute, type Route } from "./router";
 import { DocusignCallback } from "./pages/DocusignCallback";
 import { DocusignConsentComplete } from "./pages/DocusignConsentComplete";
 import { GustoCallback } from "./pages/GustoCallback";
 import { Privacy } from "./pages/Privacy";
 import { Terms } from "./pages/Terms";
+import { supabase } from "./lib/supabase";
 
-type Tab = "leads" | "email" | "proposal" | "training" | "pipeline" | "payouts";
+const SUPER_ADMIN_EMAILS = new Set(["mstogollc@gmail.com", "admin@mstogo.com"]);
+const PRIVILEGED_EMAILS = new Set([...SUPER_ADMIN_EMAILS, "joe@mstogo.com"]);
 
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "pipeline", label: "Pipeline" },
-  { id: "leads", label: "Lead intel" },
-  { id: "email", label: "Email" },
-  { id: "proposal", label: "Proposal" },
-  { id: "training", label: "Training" },
-  { id: "payouts", label: "Payouts" },
-];
+interface OpsAppProps {
+  initialModule: SalesOpsModuleId;
+}
 
-const SalesApp: FC = () => {
-  const [tab, setTab] = useState<Tab>("pipeline");
+const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
+  const [module, setModule] = useState<SalesOpsModuleId>(initialModule);
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    setModule(initialModule);
+  }, [initialModule]);
+
+  useEffect(() => {
+    const onPop = () => {
+      const r = resolveRoute(window.location.pathname);
+      if (r.id === "ops" && r.module) setModule(r.module);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user.email ?? null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setUserEmail(s?.user.email ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  function navigate(next: SalesOpsModuleId) {
+    setModule(next);
+    const path = pathForModule(next);
+    if (typeof window !== "undefined" && window.location.pathname !== path) {
+      window.history.pushState({}, "", path);
+    }
+  }
+
+  const isSuperAdmin = userEmail ? SUPER_ADMIN_EMAILS.has(userEmail.toLowerCase()) : false;
+  const isPrivileged = userEmail ? PRIVILEGED_EMAILS.has(userEmail.toLowerCase()) : false;
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="logo">M2</div>
-          <div>
-            <div>MS2GO Sales Command Center</div>
-            <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 400 }}>
-              Local growth, on tap.
-            </div>
-          </div>
-        </div>
-        <div className="rep">Joe Pearce · MS2GO</div>
-      </header>
-
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={t.id === tab ? "active" : ""}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      <main>
-        {tab === "pipeline" && <PipelineDashboard />}
-        {tab === "leads" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
-        {tab === "email" && <EmailComposer analysis={analysis} />}
-        {tab === "proposal" && <ProposalBuilder analysis={analysis} />}
-        {tab === "training" && <TrainingHub />}
-        {tab === "payouts" && <PayoutSetup />}
-      </main>
-    </div>
+    <SalesOpsLayout
+      activeId={module}
+      onNavigate={navigate}
+      userEmail={userEmail}
+      isSuperAdmin={isSuperAdmin}
+      onSignOut={() => supabase?.auth.signOut()}
+    >
+      {module === "command-center" && (
+        <CommandCenter onNavigate={navigate} userEmail={userEmail} isSuperAdmin={isPrivileged} />
+      )}
+      {module === "leads" && <LeadListGenerator />}
+      {module === "intel" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
+      {module === "proposal" && <ProposalBuilder analysis={analysis} />}
+      {module === "outreach" && <EmailComposer analysis={analysis} />}
+      {module === "pipeline" && <PipelineDashboard />}
+      {module === "payouts" && <PayoutSetup />}
+      {module === "training" && <TrainingHub />}
+      {module === "integrations" && <IntegrationsHub />}
+    </SalesOpsLayout>
   );
 };
 
 export const App: FC = () => {
-  const pathname = typeof window === "undefined" ? "/" : window.location.pathname;
-  const route = resolveRoute(pathname);
+  const initial: Route =
+    typeof window === "undefined"
+      ? { id: "ops", module: "command-center" }
+      : resolveRoute(window.location.pathname);
 
-  switch (route) {
+  switch (initial.id) {
     case "docusign-callback":
       return <DocusignCallback />;
     case "docusign-consent-complete":
@@ -82,8 +105,8 @@ export const App: FC = () => {
       return <Privacy />;
     case "terms":
       return <Terms />;
-    case "app":
+    case "ops":
     default:
-      return <SalesApp />;
+      return <OpsApp initialModule={initial.module ?? "command-center"} />;
   }
 };

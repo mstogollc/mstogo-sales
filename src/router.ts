@@ -1,25 +1,55 @@
+import type { SalesOpsModuleId } from "./components/SalesOpsLayout";
+
 export type RouteId =
-  | "app"
+  | "ops"
   | "docusign-callback"
   | "docusign-consent-complete"
   | "gusto-callback"
   | "privacy"
   | "terms";
 
-export function resolveRoute(pathname: string): RouteId {
-  const normalized = pathname.replace(/\/+$/, "").toLowerCase();
+export interface Route {
+  id: RouteId;
+  module?: SalesOpsModuleId;
+}
+
+const OPS_PATHS: Record<string, SalesOpsModuleId> = {
+  "/sales-ops": "command-center",
+  "/sales-ops/leads": "leads",
+  "/sales-ops/intel": "intel",
+  "/sales-ops/proposals": "proposal",
+  "/sales-ops/outreach": "outreach",
+  "/sales-ops/pipeline": "pipeline",
+  "/sales-ops/payouts": "payouts",
+  "/sales-ops/training": "training",
+  "/sales-ops/integrations": "integrations",
+};
+
+export function resolveRoute(pathname: string): Route {
+  const normalized = pathname.replace(/\/+$/, "").toLowerCase() || "/";
   switch (normalized) {
     case "/docusign/oauth/callback":
-      return "docusign-callback";
+      return { id: "docusign-callback" };
     case "/docusign/consent-complete":
-      return "docusign-consent-complete";
+      return { id: "docusign-consent-complete" };
     case "/gusto/oauth/callback":
-      return "gusto-callback";
+      return { id: "gusto-callback" };
     case "/privacy":
-      return "privacy";
+      return { id: "privacy" };
     case "/terms":
-      return "terms";
-    default:
-      return "app";
+      return { id: "terms" };
   }
+
+  if (normalized in OPS_PATHS) {
+    return { id: "ops", module: OPS_PATHS[normalized] };
+  }
+
+  return { id: "ops", module: "command-center" };
+}
+
+export function pathForModule(module: SalesOpsModuleId): string {
+  for (const [path, m] of Object.entries(OPS_PATHS)) {
+    if (m === module) return path;
+  }
+  return "/sales-ops";
 }
