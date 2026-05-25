@@ -5,6 +5,9 @@ import handler, {
   industryToSearchPhrase,
   isInMarket,
   isServiceBusiness,
+  classifyGeo,
+  filterRawItems,
+  matchesIndustry,
 } from "../../netlify/functions/generate-leads";
 
 function makeRequest(body: unknown, method = "POST"): Request {
@@ -76,6 +79,230 @@ describe("generate-leads pure helpers", () => {
         additional_categories: ["HVAC contractor", "Heating supply"],
       }),
     ).toBe(true);
+  });
+});
+
+describe("classifyGeo / Gulfport MS Dental scenario", () => {
+  const ctx = {
+    cityLower: "gulfport",
+    stateAbbr: "MS",
+    stateName: "Mississippi",
+    radiusMiles: 45,
+    center: { lat: 30.3674, lng: -89.0928 },
+  };
+
+  it("accepts an item with MS region and Gulfport coords", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Gulf Coast Family Dentistry",
+          address_info: { region: "MS", city: "Gulfport", country_code: "US" },
+          latitude: 30.37,
+          longitude: -89.09,
+        },
+        ctx,
+      ),
+    ).toBe("in");
+  });
+
+  it("accepts items whose region is the full state name", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Coastal Smiles Dental",
+          address_info: { region: "Mississippi", city: "Gulfport", country_code: "US" },
+        },
+        ctx,
+      ),
+    ).toBe("in");
+  });
+
+  it("accepts items where region is empty but the address string carries the state+zip", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Gulfport Dental Care",
+          address: "1234 Main St, Gulfport, MS 39501",
+        },
+        ctx,
+      ),
+    ).toBe("in");
+  });
+
+  it("accepts nearby Biloxi address inside the 45mi radius even without explicit MS region", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Biloxi Smiles",
+          address_info: { city: "Biloxi", address: "100 Howard Ave, Biloxi MS" },
+          latitude: 30.396,
+          longitude: -88.885,
+        },
+        ctx,
+      ),
+    ).toBe("in");
+  });
+
+  it("rejects an out-of-radius item with valid MS region (Jackson is >100mi from Gulfport)", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Jackson Dental Group",
+          address_info: { region: "MS", city: "Jackson", country_code: "US" },
+          latitude: 32.2988,
+          longitude: -90.1848,
+        },
+        ctx,
+      ),
+    ).toBe("out");
+  });
+
+  it("rejects items in a different state even when coords are within radius", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Mobile Dentistry",
+          address_info: { region: "AL", country_code: "US" },
+          latitude: 30.5,
+          longitude: -88.5,
+        },
+        ctx,
+      ),
+    ).toBe("out");
+  });
+
+  it("does NOT falsely reject an item just because its street contains another state's name", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Washington Ave Dental",
+          address: "2200 Washington Ave, Gulfport, MS 39507",
+        },
+        ctx,
+      ),
+    ).toBe("in");
+  });
+
+  it("returns no_geo when item has no usable address fields at all", () => {
+    expect(classifyGeo({ title: "Mystery Dental" }, ctx)).toBe("no_geo");
+  });
+
+  it("filterRawItems keeps no_geo items when city+state was provided by the caller", () => {
+    const items = [
+      { title: "Gulfport Dental Care", address: "1234 Main St, Gulfport, MS 39501" },
+      { title: "Coastal Smiles Dental", address_info: { region: "MS", city: "Gulfport", country_code: "US" } },
+      {
+        title: "Mobile Dentistry",
+        address_info: { region: "AL", country_code: "US" },
+        latitude: 30.5,
+        longitude: -88.5,
+      },
+      { title: "Generic Dental", address: "" },
+    ];
+    const result = filterRawItems(items, {
+      ...ctx,
+      industry: "Dental",
+      includeNoGeoWhenCityStateProvided: true,
+    });
+    expect(result.kept.length).toBeGreaterThanOrEqual(3);
+    expect(result.rejectedOutOfState).toBe(1);
+  });
+
+  it("filterRawItems counts industry mismatches separately for Dental queries", () => {
+    const items = [
+      { title: "Gulfport Family Dentistry", address: "1 Pine St, Gulfport, MS 39501" },
+      { title: "Coast Auto Repair", address: "2 Oak St, Gulfport, MS 39501", category: "Auto repair" },
+    ];
+    const result = filterRawItems(items, {
+      ...ctx,
+      industry: "Dental",
+      includeNoGeoWhenCityStateProvided: true,
+    });
+    expect(result.kept).toHaveLength(1);
+    expect(result.rejectedIndustryMismatch).toBe(1);
+  });
+
+  it("filterRawItems counts retail rejections separately for service queries", () => {
+    const items = [
+      { title: "Coast Dental Supply", category: "Dental supply store" },
+      { title: "Coast Family Dentistry", address: "1 Pine St, Gulfport, MS 39501" },
+    ];
+    const result = filterRawItems(items, {
+      ...ctx,
+      industry: "Dental",
+      includeNoGeoWhenCityStateProvided: true,
+    });
+    expect(result.kept).toHaveLength(1);
+    expect(result.rejectedRetail).toBe(1);
+  });
+
+  it("reproduces the live bug fix: 75 raw varied-format Gulfport dentals yield nonzero kept", () => {
+    const rawItems = [
+      { title: "Gulfport Family Dentistry", address: "1234 Main St, Gulfport, MS 39501" },
+      { title: "Coastal Smiles Dental", address_info: { region: "MS", city: "Gulfport", country_code: "US" } },
+      { title: "Dr. Smith DDS", address_info: { region: "Mississippi", city: "Gulfport" } },
+      { title: "Biloxi Bay Dentistry", latitude: 30.396, longitude: -88.885, address_info: { city: "Biloxi" } },
+      { title: "Ocean Springs Smile Center", address_info: { region: "MS", city: "Ocean Springs" }, latitude: 30.41, longitude: -88.83 },
+      { title: "Long Beach Dentistry", address: "100 Beach Blvd, Long Beach, MS 39560" },
+      { title: "Washington Ave Dental", address: "2200 Washington Ave, Gulfport, MS 39507" },
+      { title: "Pascagoula Pediatric Dentistry", address_info: { region: "MS", city: "Pascagoula" }, latitude: 30.366, longitude: -88.556 },
+    ];
+    const result = filterRawItems(rawItems, {
+      cityLower: "gulfport",
+      stateAbbr: "MS",
+      stateName: "Mississippi",
+      radiusMiles: 45,
+      center: { lat: 30.3674, lng: -89.0928 },
+      industry: "Dental",
+      includeNoGeoWhenCityStateProvided: true,
+    });
+    expect(result.kept.length).toBeGreaterThan(0);
+    expect(result.rejectedOutOfState).toBe(0);
+  });
+
+  it("does not falsely reject in-state items when address contains numbered street that looks like a state abbr (e.g. 'in 100')", () => {
+    expect(
+      classifyGeo(
+        {
+          title: "Test Dental",
+          address: "100 In Way, Gulfport, MS 39501",
+        },
+        ctx,
+      ),
+    ).toBe("in");
+  });
+});
+
+describe("matchesIndustry", () => {
+  it("accepts dental clinics for a Dental query", () => {
+    expect(matchesIndustry({ title: "Coast Family Dentistry", category: "Dentist" }, "Dental")).toBe(true);
+  });
+
+  it("rejects auto-repair shop for a Dental query", () => {
+    expect(matchesIndustry({ title: "Coast Auto Repair", category: "Auto repair" }, "Dental")).toBe(false);
+  });
+
+  it("does not constrain non-professional industries", () => {
+    expect(matchesIndustry({ title: "ABC Roofing" }, "Roofing")).toBe(true);
+  });
+});
+
+describe("isInMarket back-compat (legacy boolean wrapper)", () => {
+  it("returns true for Gulfport MS dental with state-name region (was previously rejected)", () => {
+    const ok = isInMarket(
+      {
+        title: "Coastal Smiles Dental",
+        address_info: { region: "Mississippi", city: "Gulfport", country_code: "US" },
+      },
+      {
+        cityLower: "gulfport",
+        stateAbbr: "MS",
+        stateName: "Mississippi",
+        radiusMiles: 45,
+        center: { lat: 30.3674, lng: -89.0928 },
+      },
+    );
+    expect(ok).toBe(true);
   });
 });
 
