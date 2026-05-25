@@ -50,6 +50,14 @@ const CITY_CENTERS: Record<string, { lat: number; lng: number; state: string }> 
   athens: { lat: 34.8025, lng: -86.9722, state: "AL" },
   florence: { lat: 34.7998, lng: -87.6773, state: "AL" },
   "muscle shoals": { lat: 34.7448, lng: -87.6675, state: "AL" },
+  gulfport: { lat: 30.3674, lng: -89.0928, state: "MS" },
+  biloxi: { lat: 30.3960, lng: -88.8853, state: "MS" },
+  "ocean springs": { lat: 30.4133, lng: -88.8284, state: "MS" },
+  "bay st louis": { lat: 30.3088, lng: -89.3300, state: "MS" },
+  "long beach": { lat: 30.3505, lng: -89.1528, state: "MS" },
+  pascagoula: { lat: 30.3658, lng: -88.5561, state: "MS" },
+  hattiesburg: { lat: 31.3271, lng: -89.2903, state: "MS" },
+  jackson: { lat: 32.2988, lng: -90.1848, state: "MS" },
 };
 
 const NORTH_AL_NEARBY_CITIES = [
@@ -70,6 +78,9 @@ const SERVICE_KEEP_TOKENS = [
   "contractor", "service", "services", "repair", "installation", "installer",
   "plumber", "plumbing", "electrician", "electrical", "roofer", "roofing",
   "hvac", "heating", "cooling", "landscaping", "remodeling", "construction",
+  "dentist", "dental", "clinic", "physician", "doctor", "medical", "chiropractor",
+  "veterinarian", "veterinary", "law", "attorney", "accountant", "agency",
+  "salon", "studio", "advisor", "consultant",
 ];
 
 const US_STATES: Array<{ name: string; abbr: string }> = [
@@ -177,6 +188,122 @@ interface DfsItem {
   category?: string;
 }
 
+export type GeoDecision = "in" | "out" | "no_geo";
+
+function normalizeRegion(region: string): { abbr: string | null; name: string | null } {
+  const r = region.trim().toLowerCase();
+  if (!r) return { abbr: null, name: null };
+  for (const s of US_STATES) {
+    if (r === s.abbr.toLowerCase()) return { abbr: s.abbr, name: s.name };
+    if (r === s.name.toLowerCase()) return { abbr: s.abbr, name: s.name };
+  }
+  return { abbr: null, name: null };
+}
+
+function addrHasOtherState(addr: string, targetAbbr: string): string | null {
+  if (!addr) return null;
+  for (const s of US_STATES) {
+    if (s.abbr === targetAbbr) continue;
+    const abbrPattern = new RegExp(`(?:^|[,\\s])${s.abbr.toLowerCase()}(?=[\\s,]+\\d{5}(?:-\\d{4})?\\b)`, "i");
+    if (abbrPattern.test(addr)) return s.abbr;
+  }
+  return null;
+}
+
+/**
+ * Classify a DataForSEO item against the requested market. Returns a
+ * tri-state result so callers can distinguish definitive out-of-state
+ * rejections from items that lack enough geo data to judge.
+ *
+ * Rules:
+ *  - If country is set and not US → "out".
+ *  - If coordinates exist and center is known → distance check first;
+ *    state mismatch only rejects when region clearly resolves to another
+ *    state (we don't over-reject on stray address tokens).
+ *  - If region resolves to the target state → "in".
+ *  - If region resolves to another state → "out".
+ *  - If address clearly contains "<other-state-abbr> <zip>" trailing
+ *    pattern → "out".
+ *  - If address or city field mentions the requested city/state → "in".
+ *  - Otherwise → "no_geo" (caller decides whether to include with lower
+ *    confidence when the query is city+state and provider already
+ *    returned a city-scoped result set).
+ */
+export function classifyGeo(
+  item: DfsItem,
+  ctx: {
+    cityLower: string;
+    stateAbbr: string;
+    stateName: string;
+    radiusMiles: number;
+    center: { lat: number; lng: number } | null;
+  },
+): GeoDecision {
+  const country = (item.address_info?.country_code ?? "").toUpperCase();
+  if (country && country !== "US") return "out";
+
+  const addr = (
+    item.address_info?.address ||
+    item.address ||
+    [item.address_info?.city, item.address_info?.region, item.address_info?.zip].filter(Boolean).join(", ")
+  ).toLowerCase();
+  const region = item.address_info?.region ?? "";
+  const cityField = (item.address_info?.city ?? "").toLowerCase();
+  const stateAbbrLower = ctx.stateAbbr.toLowerCase();
+  const stateNameLower = ctx.stateName.toLowerCase();
+
+  const normalized = normalizeRegion(region);
+
+  const hasCoords =
+    typeof item.latitude === "number" &&
+    typeof item.longitude === "number" &&
+    Number.isFinite(item.latitude) &&
+    Number.isFinite(item.longitude);
+
+  if (ctx.center && hasCoords) {
+    const d = milesBetween(ctx.center, { lat: item.latitude!, lng: item.longitude! });
+    if (d > ctx.radiusMiles) return "out";
+    if (ctx.stateAbbr && normalized.abbr && normalized.abbr !== ctx.stateAbbr) return "out";
+    return "in";
+  }
+
+  if (ctx.stateAbbr) {
+    if (normalized.abbr === ctx.stateAbbr) return "in";
+    if (normalized.abbr && normalized.abbr !== ctx.stateAbbr) return "out";
+
+    const otherStateInAddr = addrHasOtherState(addr, ctx.stateAbbr);
+    if (otherStateInAddr) return "out";
+
+    const stateMatchesAddr =
+      new RegExp(`(?:^|[,\\s])${stateAbbrLower}(?=[\\s,]+\\d{5}(?:-\\d{4})?\\b)`, "i").test(addr) ||
+      new RegExp(`(?:^|[,\\s])${stateAbbrLower}(?=$|[,\\s])`, "i").test(addr) ||
+      (stateNameLower && new RegExp(`(?:^|[,\\s])${stateNameLower}(?=$|[,\\s])`, "i").test(addr));
+
+    const cityMatches =
+      (ctx.cityLower && cityField.includes(ctx.cityLower)) ||
+      (ctx.cityLower && addr.includes(ctx.cityLower));
+
+    if (stateMatchesAddr) {
+      if (ctx.stateAbbr === "AL" && ctx.cityLower) {
+        if (
+          NORTH_AL_NEARBY_CITIES.some((c) => addr.includes(c) || cityField.includes(c)) ||
+          cityMatches
+        ) {
+          return "in";
+        }
+        return "no_geo";
+      }
+      return "in";
+    }
+
+    if (cityMatches) return "in";
+  }
+
+  if (!addr && !region && !cityField) return "no_geo";
+
+  return "no_geo";
+}
+
 export function isInMarket(
   item: DfsItem,
   ctx: {
@@ -187,73 +314,7 @@ export function isInMarket(
     center: { lat: number; lng: number } | null;
   },
 ): boolean {
-  const country = (item.address_info?.country_code ?? "").toUpperCase();
-  if (country && country !== "US") return false;
-
-  const addr = (
-    item.address_info?.address ||
-    item.address ||
-    [item.address_info?.city, item.address_info?.region, item.address_info?.zip].filter(Boolean).join(", ")
-  ).toLowerCase();
-  const region = (item.address_info?.region ?? "").toLowerCase();
-  const cityField = (item.address_info?.city ?? "").toLowerCase();
-  const stateAbbrLower = ctx.stateAbbr.toLowerCase();
-  const stateNameLower = ctx.stateName.toLowerCase();
-
-  if (ctx.stateAbbr) {
-    for (const s of US_STATES) {
-      if (s.abbr === ctx.stateAbbr) continue;
-      const abbrLower = s.abbr.toLowerCase();
-      const nameLower = s.name.toLowerCase();
-      if (region === abbrLower || region === nameLower) return false;
-      if (new RegExp(`(?:^|[,\\s])${abbrLower}(?:[,\\s\\d]|$)`, "i").test(addr)) return false;
-      if (addr.includes(nameLower)) return false;
-    }
-  }
-
-  const hasCoords =
-    ctx.center &&
-    typeof item.latitude === "number" &&
-    typeof item.longitude === "number" &&
-    Number.isFinite(item.latitude) &&
-    Number.isFinite(item.longitude);
-
-  if (hasCoords) {
-    const d = milesBetween(ctx.center!, { lat: item.latitude!, lng: item.longitude! });
-    if (d > ctx.radiusMiles) return false;
-    if (ctx.stateAbbr) {
-      const regionPresent = Boolean(region);
-      const stateMatches =
-        region === stateAbbrLower ||
-        region === stateNameLower ||
-        new RegExp(`(?:^|[,\\s])${stateAbbrLower}(?:[,\\s\\d]|$)`, "i").test(addr) ||
-        addr.includes(stateNameLower);
-      if (regionPresent && !stateMatches) return false;
-      if (!regionPresent && !addr && !cityField) return true;
-      if (!regionPresent && !stateMatches && (addr || cityField)) return false;
-    }
-    return true;
-  }
-
-  if (!addr && !region && !cityField) return false;
-
-  const stateMatches =
-    region === stateAbbrLower ||
-    region === stateNameLower ||
-    new RegExp(`(?:^|[,\\s])${stateAbbrLower}(?:[,\\s\\d]|$)`, "i").test(addr) ||
-    addr.includes(stateNameLower);
-
-  if (!stateMatches) return false;
-
-  if (ctx.stateAbbr === "AL") {
-    return (
-      NORTH_AL_NEARBY_CITIES.some((c) => addr.includes(c) || cityField.includes(c)) ||
-      addr.includes(ctx.cityLower) ||
-      cityField.includes(ctx.cityLower)
-    );
-  }
-
-  return addr.includes(ctx.cityLower) || cityField.includes(ctx.cityLower);
+  return classifyGeo(item, ctx) === "in";
 }
 
 export function isServiceBusiness(item: DfsItem): boolean {
@@ -280,6 +341,50 @@ export function isServiceBusiness(item: DfsItem): boolean {
     return !nameIsRetail;
   }
   return false;
+}
+
+const PROFESSIONAL_INDUSTRY_TOKENS: Record<string, string[]> = {
+  dental: ["dentist", "dental", "orthodont", "endodont", "periodont", "oral surgeon", "prosthodont"],
+  medical: ["doctor", "physician", "clinic", "medical", "urgent care", "family practice"],
+  chiropractic: ["chiropract"],
+  veterinary: ["veterinarian", "veterinary", "animal hospital", "vet clinic"],
+  law: ["law", "attorney", "lawyer", "legal"],
+  accounting: ["account", "bookkeep", "cpa", "tax service"],
+  insurance: ["insurance"],
+  financial: ["financial", "advisor", "wealth", "investment"],
+};
+
+function industryHaystack(item: DfsItem): string {
+  return [item.title ?? "", item.category ?? "", ...(item.additional_categories ?? [])]
+    .join(" ")
+    .toLowerCase();
+}
+
+/**
+ * For "professional" industries like Dental, ensure the listing actually
+ * looks like that profession. DataForSEO's keyword search occasionally
+ * mixes in adjacent results (e.g. dental supply, dental insurance broker)
+ * — we want to drop those but never reject for non-professional
+ * industries where the search phrase is already specific enough.
+ */
+export function matchesIndustry(item: DfsItem, industry: string): boolean {
+  const i = industry.toLowerCase();
+  let key: string | null = null;
+  if (i.includes("dental") || i.includes("dentist")) key = "dental";
+  else if (i.includes("medical")) key = "medical";
+  else if (i.includes("chiropract")) key = "chiropractic";
+  else if (i.includes("veterinary") || i.includes("animal")) key = "veterinary";
+  else if (i.includes("law") || i.includes("attorney")) key = "law";
+  else if (i.includes("account") || i.includes("bookkeep") || i.includes("cpa")) key = "accounting";
+  else if (i.includes("insurance")) key = "insurance";
+  else if (i.includes("financial")) key = "financial";
+
+  if (!key) return true;
+
+  const tokens = PROFESSIONAL_INDUSTRY_TOKENS[key];
+  const hay = industryHaystack(item);
+  if (!hay) return true;
+  return tokens.some((t) => hay.includes(t));
 }
 
 async function callDataForSeo(
@@ -360,6 +465,64 @@ function buildLead(it: DfsItem, i: number, body: { city: string; state?: string;
   };
 }
 
+export interface FilterResult {
+  kept: DfsItem[];
+  rejectedOutOfState: number;
+  rejectedRetail: number;
+  rejectedNoGeo: number;
+  rejectedIndustryMismatch: number;
+}
+
+/**
+ * Apply all filters in order with separate counters. When geography is
+ * ambiguous ("no_geo") and the caller indicates the query has a clear
+ * city+state, we include the item with lower confidence rather than
+ * dropping every result — the provider was already asked for that
+ * city/state, so a missing address field is usually noise, not a
+ * different market.
+ */
+export function filterRawItems(
+  rawItems: DfsItem[],
+  ctx: {
+    cityLower: string;
+    stateAbbr: string;
+    stateName: string;
+    radiusMiles: number;
+    center: { lat: number; lng: number } | null;
+    industry: string;
+    includeNoGeoWhenCityStateProvided: boolean;
+  },
+): FilterResult {
+  const kept: DfsItem[] = [];
+  let rejectedOutOfState = 0;
+  let rejectedRetail = 0;
+  let rejectedNoGeo = 0;
+  let rejectedIndustryMismatch = 0;
+
+  for (const it of rawItems) {
+    const geo = classifyGeo(it, ctx);
+    if (geo === "out") {
+      rejectedOutOfState++;
+      continue;
+    }
+    if (geo === "no_geo" && !ctx.includeNoGeoWhenCityStateProvided) {
+      rejectedNoGeo++;
+      continue;
+    }
+    if (!isServiceBusiness(it)) {
+      rejectedRetail++;
+      continue;
+    }
+    if (!matchesIndustry(it, ctx.industry)) {
+      rejectedIndustryMismatch++;
+      continue;
+    }
+    kept.push(it);
+  }
+
+  return { kept, rejectedOutOfState, rejectedRetail, rejectedNoGeo, rejectedIndustryMismatch };
+}
+
 export default async (req: Request, _ctx: Context) => {
   if (req.method !== "POST") return methodNotAllowed(["POST"]);
 
@@ -413,28 +576,26 @@ export default async (req: Request, _ctx: Context) => {
     });
 
     const cityLower = city.toLowerCase();
-    const stateAbbr = state.toUpperCase();
-    const stateName = US_STATES.find((s) => s.abbr === stateAbbr)?.name ?? "";
+    const stateAbbrUpper = state.toUpperCase();
+    const stateNormalized = normalizeRegion(state);
+    const stateAbbr = stateNormalized.abbr ?? (stateAbbrUpper.length === 2 ? stateAbbrUpper : "");
+    const stateName = stateNormalized.name ?? (US_STATES.find((s) => s.abbr === stateAbbr)?.name ?? "");
     const center = CITY_CENTERS[cityLower]
       ? { lat: CITY_CENTERS[cityLower].lat, lng: CITY_CENTERS[cityLower].lng }
       : null;
 
-    let rejectedOutOfState = 0;
-    let rejectedRetail = 0;
-    const filtered: DfsItem[] = [];
-    for (const it of rawItems) {
-      if (!isInMarket(it, { cityLower, stateAbbr, stateName, radiusMiles, center })) {
-        rejectedOutOfState++;
-        continue;
-      }
-      if (!isServiceBusiness(it)) {
-        rejectedRetail++;
-        continue;
-      }
-      filtered.push(it);
-    }
+    const { kept, rejectedOutOfState, rejectedRetail, rejectedNoGeo, rejectedIndustryMismatch } =
+      filterRawItems(rawItems, {
+        cityLower,
+        stateAbbr,
+        stateName,
+        radiusMiles,
+        center,
+        industry,
+        includeNoGeoWhenCityStateProvided: Boolean(city && stateAbbr),
+      });
 
-    const leads = filtered.slice(0, maxCount).map((it, i) => buildLead(it, i, { city, state, industry }));
+    const leads = kept.slice(0, maxCount).map((it, i) => buildLead(it, i, { city, state, industry }));
 
     let persisted = 0;
     const me = await currentUser(req);
@@ -478,6 +639,8 @@ export default async (req: Request, _ctx: Context) => {
         filteredCount: 0,
         rejectedOutOfState,
         rejectedRetail,
+        rejectedNoGeo,
+        rejectedIndustryMismatch,
         leads: [],
         persisted,
       });
@@ -490,6 +653,8 @@ export default async (req: Request, _ctx: Context) => {
       filteredCount: leads.length,
       rejectedOutOfState,
       rejectedRetail,
+      rejectedNoGeo,
+      rejectedIndustryMismatch,
       leads,
       persisted,
     });

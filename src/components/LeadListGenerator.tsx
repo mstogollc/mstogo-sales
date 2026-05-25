@@ -28,6 +28,8 @@ interface GenerateLeadsResponse {
   filteredCount?: number;
   rejectedOutOfState?: number;
   rejectedRetail?: number;
+  rejectedNoGeo?: number;
+  rejectedIndustryMismatch?: number;
   persisted?: number;
 }
 
