@@ -19,6 +19,7 @@ const OPS_PATHS: Record<string, SalesOpsModuleId> = {
   "/sales-ops/intel": "intel",
   "/sales-ops/proposals": "proposal",
   "/sales-ops/outreach": "outreach",
+  "/sales-ops/calendar": "calendar",
   "/sales-ops/pipeline": "pipeline",
   "/sales-ops/payouts": "payouts",
   "/sales-ops/training": "training",

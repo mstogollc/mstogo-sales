@@ -626,9 +626,123 @@ pre.preview {
   border-radius: 8px;
   padding: 14px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font: inherit;
   font-size: 14px;
   margin: 0;
+}
+
+/* Printable document letterhead (proposals + notes) */
+.print-letterhead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--ms2go-navy);
+}
+
+.print-brand {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ms2go-navy);
+  font-size: 20px;
+}
+
+.print-brand-sub {
+  color: var(--ms2go-gray-500);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/* ===== Print / PDF output =====
+   Robust layout so multi-page proposals and notes never overlap:
+   - hide all app chrome and any sibling cards
+   - reset the printable document to flow normally on the page
+   - let long content wrap and break across pages cleanly */
+@media print {
+  @page {
+    size: letter;
+    margin: 0.75in;
+  }
+
+  html,
+  body,
+  #root {
+    background: white;
+    height: auto;
+  }
+
+  /* Hide everything by default, then reveal only the printable document. */
+  body * {
+    visibility: hidden;
+  }
+
+  .print-document,
+  .print-document * {
+    visibility: visible;
+  }
+
+  .print-document {
+    position: static;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: 0;
+  }
+
+  /* Collapse layout containers so the document starts at the top-left of the
+     page rather than inheriting flex/sticky positioning that caused overlap. */
+  .ops-shell,
+  .ops-main,
+  .ops-content,
+  .card {
+    display: block;
+    position: static;
+    max-width: none;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: 0;
+    overflow: visible;
+  }
+
+  .ops-sidebar,
+  .ops-topbar,
+  .ops-footer,
+  .actions,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-letterhead {
+    /* Repeat is unnecessary; keep the header with the first block. */
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  pre.preview,
+  .proposal-output,
+  .notes-output {
+    background: white;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    font-size: 12pt;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    /* Allow the block to flow across pages without clipping or overlapping,
+       and avoid orphaned/awkward single lines at page boundaries. */
+    break-inside: auto;
+    orphans: 3;
+    widows: 3;
+  }
 }
 
 /* ===== Branded standalone pages (callback, consent, privacy, terms) ===== */

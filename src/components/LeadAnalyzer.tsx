@@ -1,20 +1,36 @@
-import { useState, type FC } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 import { api, type AnalyzeResponse, type PlaceSignal } from "../api";
 import { Indicator } from "./Indicator";
+import { updateActiveProspect, useActiveProspect } from "../lib/prospect";
 
 interface Props {
   onAnalysisReady: (analysis: AnalyzeResponse) => void;
 }
 
 export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
-  const [businessName, setBusinessName] = useState("");
-  const [website, setWebsite] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
+  const prospect = useActiveProspect();
+  const [businessName, setBusinessName] = useState(prospect?.businessName ?? "");
+  const [website, setWebsite] = useState(prospect?.website ?? "");
+  const [city, setCity] = useState(prospect?.city ?? "");
+  const [state, setState] = useState(prospect?.state ?? "");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+
+  // When a lead is selected upstream (Lead Lists), prefill this brief with the
+  // chosen business so the rep doesn't re-type anything.
+  const prefilledFor = useRef<string | null>(null);
+  useEffect(() => {
+    const key = prospect?.businessName ?? null;
+    if (key && prefilledFor.current !== key) {
+      prefilledFor.current = key;
+      setBusinessName(prospect?.businessName ?? "");
+      setWebsite(prospect?.website ?? "");
+      setCity(prospect?.city ?? "");
+      setState(prospect?.state ?? "");
+    }
+  }, [prospect]);
 
   async function handleAnalyze() {
     setError(null);
@@ -33,6 +49,15 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
       });
       setResult(data);
       onAnalysisReady(data);
+      updateActiveProspect({
+        businessName: data.lead.businessName ?? (businessName.trim() || undefined),
+        website: data.placeProfile.website ?? data.lead.website ?? (website.trim() || undefined),
+        phone: data.placeProfile.internationalPhone,
+        address: data.placeProfile.formattedAddress ?? data.lead.address,
+        city: data.lead.city ?? (city.trim() || undefined),
+        state: data.lead.state ?? (state.trim() || undefined),
+        industry: data.placeProfile.primaryCategory,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong running the analysis.");
     } finally {
@@ -49,6 +74,14 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
       <section className="card">
         <h2>Lead snapshot</h2>
         <p className="subtitle">Pull the public footprint of a prospect to ground your next conversation.</p>
+        {prospect?.businessName && (
+          <div className="notice" style={{ marginBottom: 12 }}>
+            Working selected lead: <strong>{prospect.businessName}</strong>
+            {prospect.industry ? ` · ${prospect.industry}` : ""}
+            {prospect.phone ? ` · ${prospect.phone}` : ""}
+            {prospect.address ? ` · ${prospect.address}` : ""}
+          </div>
+        )}
         <div className="row">
           <div>
             <label htmlFor="biz">Business name</label>
@@ -79,6 +112,25 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
             <input id="state" value={state} onChange={(e) => setState(e.target.value)} />
           </div>
         </div>
+        <div className="row" style={{ marginTop: 12 }}>
+          <div>
+            <label htmlFor="linkedin">LinkedIn URL</label>
+            <input
+              id="linkedin"
+              type="url"
+              placeholder="https://www.linkedin.com/company/…"
+              value={prospect?.linkedinUrl ?? ""}
+              onChange={(e) => updateActiveProspect({ linkedinUrl: e.target.value })}
+            />
+            {prospect?.linkedinUrl && (
+              <p className="muted" style={{ marginTop: 6 }}>
+                <a href={prospect.linkedinUrl} target="_blank" rel="noreferrer">
+                  Open LinkedIn profile
+                </a>
+              </p>
+            )}
+          </div>
+        </div>
         <div style={{ marginTop: 12 }}>
           <label htmlFor="notes">Rep notes (optional)</label>
           <textarea
@@ -100,9 +152,32 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
       {result && (
         <>
           <section className="card">
-            <h2>What the rep should know</h2>
-            <p className="subtitle">Plain-English read on this prospect.</p>
-            <pre className="preview">{result.narrative}</pre>
+            <div className="ops-page-head">
+              <div>
+                <h2>What the rep should know</h2>
+                <p className="subtitle">Plain-English read on this prospect.</p>
+              </div>
+              <div className="actions no-print" style={{ marginTop: 0 }}>
+                <button className="ghost" type="button" onClick={() => window.print()}>
+                  Print notes
+                </button>
+              </div>
+            </div>
+            <div className="print-document">
+              <div className="print-letterhead">
+                <span className="print-brand">MS2GO</span>
+                <span className="print-brand-sub">
+                  Prospect Notes{result.lead.businessName ? ` · ${result.lead.businessName}` : ""}
+                </span>
+              </div>
+              <pre className="preview notes-output">{result.narrative}</pre>
+              {notes.trim() && (
+                <>
+                  <p className="section-title" style={{ marginTop: 16 }}>Rep notes</p>
+                  <pre className="preview notes-output">{notes}</pre>
+                </>
+              )}
+            </div>
             <div className="divider" />
             <p className="section-title">Recommended package</p>
             <div className="tier-grid">

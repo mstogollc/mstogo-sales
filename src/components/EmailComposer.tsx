@@ -1,13 +1,16 @@
 import { useState, type FC } from "react";
 import { api, type AnalyzeResponse } from "../api";
+import { useActiveProspect } from "../lib/prospect";
 
 interface Props {
   analysis: AnalyzeResponse | null;
 }
 
 export const EmailComposer: FC<Props> = ({ analysis }) => {
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
+  const prospect = useActiveProspect();
+  const businessName = analysis?.lead.businessName || prospect?.businessName;
+  const [contactName, setContactName] = useState(prospect?.contactName ?? "");
+  const [contactEmail, setContactEmail] = useState(prospect?.contactEmail ?? "");
   const [tone, setTone] = useState<"warm" | "direct" | "consultative">("consultative");
   const [intent, setIntent] = useState<"first_touch" | "follow_up" | "proposal_intro" | "discovery_recap">(
     "first_touch",
@@ -26,7 +29,7 @@ export const EmailComposer: FC<Props> = ({ analysis }) => {
     try {
       const insight = analysis?.placeProfile.summary;
       const draft = await api.draftEmail({
-        businessName: analysis?.lead.businessName,
+        businessName,
         contactName: contactName || undefined,
         insight,
         tone,
@@ -91,6 +94,12 @@ export const EmailComposer: FC<Props> = ({ analysis }) => {
     <section className="card">
       <h2>Email composer</h2>
       <p className="subtitle">Draft a first-touch or follow-up — branded, on-message, and ready to send.</p>
+
+      {businessName && (
+        <div className="notice" style={{ marginBottom: 12 }}>
+          Outreach for <strong>{businessName}</strong>
+        </div>
+      )}
 
       <div className="row">
         <div>

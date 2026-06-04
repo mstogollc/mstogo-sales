@@ -6,6 +6,7 @@ export type SalesOpsModuleId =
   | "intel"
   | "proposal"
   | "outreach"
+  | "calendar"
   | "pipeline"
   | "payouts"
   | "training"
@@ -49,6 +50,12 @@ export const SALES_OPS_NAV: NavItem[] = [
     label: "Email Outreach",
     description: "Draft, rewrite, send",
     path: "/sales-ops/outreach",
+  },
+  {
+    id: "calendar",
+    label: "Appointments",
+    description: "Book meetings & demos",
+    path: "/sales-ops/calendar",
   },
   {
     id: "pipeline",

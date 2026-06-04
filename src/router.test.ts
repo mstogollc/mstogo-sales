@@ -31,6 +31,7 @@ describe("resolveRoute", () => {
     expect(resolveRoute("/sales-ops/intel")).toEqual({ id: "ops", module: "intel" });
     expect(resolveRoute("/sales-ops/proposals")).toEqual({ id: "ops", module: "proposal" });
     expect(resolveRoute("/sales-ops/outreach")).toEqual({ id: "ops", module: "outreach" });
+    expect(resolveRoute("/sales-ops/calendar")).toEqual({ id: "ops", module: "calendar" });
     expect(resolveRoute("/sales-ops/pipeline")).toEqual({ id: "ops", module: "pipeline" });
     expect(resolveRoute("/sales-ops/payouts")).toEqual({ id: "ops", module: "payouts" });
     expect(resolveRoute("/sales-ops/training")).toEqual({ id: "ops", module: "training" });

@@ -1,5 +1,6 @@
-import { useState, type FC } from "react";
+import { type Dispatch, type FC, type SetStateAction } from "react";
 import { authHeader, supabase } from "../lib/supabase";
+import { setActiveProspect } from "../lib/prospect";
 
 export interface GeneratedLead {
   id: string;
@@ -76,14 +77,60 @@ type Phase =
   | { kind: "setup_required"; data: GenerateLeadsResponse }
   | { kind: "error"; message: string };
 
-export const LeadListGenerator: FC = () => {
-  const [city, setCity] = useState("Huntsville");
-  const [state, setState] = useState("AL");
-  const [radius, setRadius] = useState(25);
-  const [maxCount, setMaxCount] = useState(25);
-  const [industry, setIndustry] = useState("Roofing");
-  const [persist, setPersist] = useState(true);
-  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+export interface LeadSearchState {
+  city: string;
+  state: string;
+  radius: number;
+  maxCount: number;
+  industry: string;
+  persist: boolean;
+  phase: Phase;
+  selectedId: string | null;
+}
+
+export function createLeadSearchState(): LeadSearchState {
+  return {
+    city: "Huntsville",
+    state: "AL",
+    radius: 25,
+    maxCount: 25,
+    industry: "Roofing",
+    persist: true,
+    phase: { kind: "idle" },
+    selectedId: null,
+  };
+}
+
+interface Props {
+  state: LeadSearchState;
+  setState: Dispatch<SetStateAction<LeadSearchState>>;
+  onUseLead?: () => void;
+}
+
+export const LeadListGenerator: FC<Props> = ({ state: search, setState: setSearch, onUseLead }) => {
+  const { city, state, radius, maxCount, industry, persist, phase, selectedId } = search;
+  const patch = (p: Partial<LeadSearchState>) => setSearch((s) => ({ ...s, ...p }));
+  const setCity = (v: string) => patch({ city: v });
+  const setState = (v: string) => patch({ state: v });
+  const setRadius = (v: number) => patch({ radius: v });
+  const setMaxCount = (v: number) => patch({ maxCount: v });
+  const setIndustry = (v: string) => patch({ industry: v });
+  const setPersist = (v: boolean) => patch({ persist: v });
+  const setPhase = (v: Phase) => patch({ phase: v });
+
+  function selectLead(lead: GeneratedLead) {
+    setActiveProspect({
+      businessName: lead.businessName,
+      website: lead.website,
+      phone: lead.phone,
+      address: lead.address,
+      city: lead.city,
+      state: lead.state,
+      industry: lead.industry,
+    });
+    patch({ selectedId: lead.id });
+    onUseLead?.();
+  }
 
   async function run() {
     if (!city || !industry) {
@@ -303,11 +350,12 @@ export const LeadListGenerator: FC = () => {
                   <th>Package</th>
                   <th>Reviews</th>
                   <th>Signal</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {leads.map((l) => (
-                  <tr key={l.id}>
+                  <tr key={l.id} style={l.id === selectedId ? { background: "rgba(11, 95, 255, 0.06)" } : undefined}>
                     <td>
                       <div style={{ fontWeight: 600 }}>{l.businessName}</div>
                       {l.phone && <div className="muted" style={{ fontSize: 12 }}>{l.phone}</div>}
@@ -338,6 +386,15 @@ export const LeadListGenerator: FC = () => {
                     </td>
                     <td className="muted" style={{ fontSize: 12, maxWidth: 260 }}>
                       {l.signal}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className={l.id === selectedId ? "primary" : "ghost"}
+                        onClick={() => selectLead(l)}
+                      >
+                        {l.id === selectedId ? "Selected" : "Use this lead"}
+                      </button>
                     </td>
                   </tr>
                 ))}

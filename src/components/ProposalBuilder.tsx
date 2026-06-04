@@ -1,14 +1,52 @@
 import { useState, type FC } from "react";
 import { api, type AnalyzeResponse } from "../api";
+import { useActiveProspect } from "../lib/prospect";
 
 interface Props {
   analysis: AnalyzeResponse | null;
 }
 
+const INDUSTRY_OPTIONS = [
+  "Roofing",
+  "HVAC",
+  "Plumbing",
+  "Electrical",
+  "General Contractor",
+  "Home Services",
+  "Real Estate",
+  "Property Management",
+  "Dental",
+  "Chiropractic",
+  "Veterinary",
+  "Medical / Healthcare",
+  "Law Firm",
+  "Accounting",
+  "Insurance",
+  "Financial Advisor",
+  "Fitness",
+  "Salon / Barber / Spa",
+  "Restaurant / Food Service",
+  "Automotive",
+  "Retail",
+  "Professional Services",
+];
+
+const CUSTOM_INDUSTRY = "__custom__";
+
 export const ProposalBuilder: FC<Props> = ({ analysis }) => {
+  const prospect = useActiveProspect();
+  const businessName = analysis?.lead.businessName || prospect?.businessName || "";
   const [goals, setGoals] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [contactRole, setContactRole] = useState("");
+  const [contactName, setContactName] = useState(prospect?.contactName ?? "");
+  const [contactRole, setContactRole] = useState(prospect?.contactRole ?? "");
+  const presetIndustry = prospect?.industry ?? "";
+  const industryIsKnown = INDUSTRY_OPTIONS.includes(presetIndustry);
+  const [industryChoice, setIndustryChoice] = useState<string>(
+    presetIndustry ? (industryIsKnown ? presetIndustry : CUSTOM_INDUSTRY) : "",
+  );
+  const [customIndustry, setCustomIndustry] = useState(
+    presetIndustry && !industryIsKnown ? presetIndustry : "",
+  );
   const [tier, setTier] = useState<"Basic" | "Growth" | "Premium">(
     analysis?.recommendation.tier || "Growth",
   );
@@ -16,23 +54,30 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const industry = industryChoice === CUSTOM_INDUSTRY ? customIndustry.trim() : industryChoice;
+
   async function handleBuild() {
     setError(null);
-    if (!analysis?.lead.businessName) {
-      setError("Run an analysis first so we have something to anchor the proposal on.");
+    if (!businessName) {
+      setError("Select a lead or run an analysis first so we have something to anchor the proposal on.");
       return;
     }
     setLoading(true);
     try {
+      const goalsWithIndustry = [industry ? `Industry: ${industry}` : null, goals.trim() || null]
+        .filter(Boolean)
+        .join("\n");
       const res = await api.proposal({
-        businessName: analysis.lead.businessName,
+        businessName,
         contactName: contactName || undefined,
         contactRole: contactRole || undefined,
-        overall: analysis.placeProfile.overall,
-        reviewCount: analysis.placeProfile.userRatingCount,
-        topSignals: [...analysis.placeProfile.signals, ...(analysis.seoSnapshot.rankSignals || [])].slice(0, 5),
+        overall: analysis?.placeProfile.overall,
+        reviewCount: analysis?.placeProfile.userRatingCount,
+        topSignals: analysis
+          ? [...analysis.placeProfile.signals, ...(analysis.seoSnapshot.rankSignals || [])].slice(0, 5)
+          : undefined,
         recommendedTier: tier,
-        goals: goals || undefined,
+        goals: goalsWithIndustry || undefined,
       });
       setOutput(res.proposal);
     } catch (err) {
@@ -47,9 +92,14 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
       <h2>Proposal builder</h2>
       <p className="subtitle">A one-page proposal sales reps can send within five minutes of a discovery call.</p>
 
-      {!analysis && (
+      {businessName ? (
         <div className="notice" style={{ marginBottom: 12 }}>
-          Run a lead analysis first — proposals are stronger when grounded in real signals.
+          Proposal for <strong>{businessName}</strong>
+          {industry ? ` · ${industry}` : ""}
+        </div>
+      ) : (
+        <div className="notice" style={{ marginBottom: 12 }}>
+          Select a lead or run a lead analysis first — proposals are stronger when grounded in real signals.
         </div>
       )}
 
@@ -72,6 +122,34 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
         </div>
       </div>
 
+      <div className="row" style={{ marginTop: 12 }}>
+        <div>
+          <label htmlFor="industry">Industry / category</label>
+          <select
+            id="industry"
+            value={industryChoice}
+            onChange={(e) => setIndustryChoice(e.target.value)}
+          >
+            <option value="">Select an industry…</option>
+            {INDUSTRY_OPTIONS.map((i) => (
+              <option key={i} value={i}>{i}</option>
+            ))}
+            <option value={CUSTOM_INDUSTRY}>Other — enter manually…</option>
+          </select>
+        </div>
+        {industryChoice === CUSTOM_INDUSTRY && (
+          <div>
+            <label htmlFor="industry-custom">Custom industry</label>
+            <input
+              id="industry-custom"
+              placeholder="e.g. Marine Outfitter, Med Spa, Franchise Bakery"
+              value={customIndustry}
+              onChange={(e) => setCustomIndustry(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+
       <div style={{ marginTop: 12 }}>
         <label htmlFor="goals">Goals for the engagement</label>
         <textarea
@@ -91,7 +169,18 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
       {output && (
         <>
           <div className="divider" />
-          <pre className="preview">{output}</pre>
+          <div className="actions no-print" style={{ marginTop: 0, marginBottom: 12 }}>
+            <button className="ghost" type="button" onClick={() => window.print()}>
+              Print / Save as PDF
+            </button>
+          </div>
+          <div className="print-document">
+            <div className="print-letterhead">
+              <span className="print-brand">MS2GO</span>
+              <span className="print-brand-sub">Sales Proposal</span>
+            </div>
+            <pre className="preview proposal-output">{output}</pre>
+          </div>
         </>
       )}
 

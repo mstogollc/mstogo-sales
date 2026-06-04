@@ -1,6 +1,6 @@
 import { useEffect, useState, type FC } from "react";
 import { LeadAnalyzer } from "./components/LeadAnalyzer";
-import { LeadListGenerator } from "./components/LeadListGenerator";
+import { LeadListGenerator, createLeadSearchState, type LeadSearchState } from "./components/LeadListGenerator";
 import { EmailComposer } from "./components/EmailComposer";
 import { ProposalBuilder } from "./components/ProposalBuilder";
 import { TrainingHub } from "./components/TrainingHub";
@@ -8,6 +8,7 @@ import { PipelineDashboard } from "./components/PipelineDashboard";
 import { PayoutSetup } from "./components/PayoutSetup";
 import { CommandCenter } from "./components/CommandCenter";
 import { IntegrationsHub } from "./components/IntegrationsHub";
+import { AppointmentCalendar } from "./components/AppointmentCalendar";
 import { SalesOpsLayout, type SalesOpsModuleId } from "./components/SalesOpsLayout";
 import type { AnalyzeResponse } from "./api";
 import { pathForModule, resolveRoute, type Route } from "./router";
@@ -29,6 +30,7 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
   const [module, setModule] = useState<SalesOpsModuleId>(initialModule);
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [leadSearch, setLeadSearch] = useState<LeadSearchState>(createLeadSearchState);
 
   useEffect(() => {
     setModule(initialModule);
@@ -76,10 +78,17 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
       {module === "command-center" && (
         <CommandCenter onNavigate={navigate} userEmail={userEmail} isSuperAdmin={isPrivileged} />
       )}
-      {module === "leads" && <LeadListGenerator />}
+      {module === "leads" && (
+        <LeadListGenerator
+          state={leadSearch}
+          setState={setLeadSearch}
+          onUseLead={() => navigate("intel")}
+        />
+      )}
       {module === "intel" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
       {module === "proposal" && <ProposalBuilder analysis={analysis} />}
       {module === "outreach" && <EmailComposer analysis={analysis} />}
+      {module === "calendar" && <AppointmentCalendar />}
       {module === "pipeline" && <PipelineDashboard />}
       {module === "payouts" && <PayoutSetup />}
       {module === "training" && <TrainingHub />}
