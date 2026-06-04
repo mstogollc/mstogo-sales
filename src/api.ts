@@ -82,6 +82,12 @@ export const api = {
     businessName?: string;
     contactName?: string;
     contactRole?: string;
+    website?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    industry?: string;
     rep?: { name?: string; email?: string };
     insight?: string;
     recommendedTier?: "Basic" | "Growth" | "Premium";

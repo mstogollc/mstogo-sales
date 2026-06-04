@@ -1,6 +1,6 @@
 import { useState, type FC } from "react";
 import { api, type AnalyzeResponse } from "../api";
-import { useActiveProspect } from "../lib/prospect";
+import { resolveProspectFacts, missingKeyFacts, useActiveProspect } from "../lib/prospect";
 
 interface Props {
   analysis: AnalyzeResponse | null;
@@ -8,9 +8,13 @@ interface Props {
 
 export const EmailComposer: FC<Props> = ({ analysis }) => {
   const prospect = useActiveProspect();
-  const businessName = analysis?.lead.businessName || prospect?.businessName;
-  const [contactName, setContactName] = useState(prospect?.contactName ?? "");
-  const [contactEmail, setContactEmail] = useState(prospect?.contactEmail ?? "");
+  // Single canonical fact set the draft is allowed to use. The selected
+  // lead/prospect record is the source of truth; analysis only fills gaps.
+  const facts = resolveProspectFacts(prospect, analysis);
+  const businessName = facts.businessName;
+  const missingFacts = missingKeyFacts(facts);
+  const [contactName, setContactName] = useState(facts.contactName ?? "");
+  const [contactEmail, setContactEmail] = useState(facts.contactEmail ?? "");
   const [tone, setTone] = useState<"warm" | "direct" | "consultative">("consultative");
   const [intent, setIntent] = useState<"first_touch" | "follow_up" | "proposal_intro" | "discovery_recap">(
     "first_touch",
@@ -29,8 +33,14 @@ export const EmailComposer: FC<Props> = ({ analysis }) => {
     try {
       const insight = analysis?.placeProfile.summary;
       const draft = await api.draftEmail({
-        businessName,
+        businessName: facts.businessName,
         contactName: contactName || undefined,
+        website: facts.website,
+        phone: facts.phone,
+        address: facts.address,
+        city: facts.city,
+        state: facts.state,
+        industry: facts.industry,
         insight,
         tone,
         intent,
@@ -98,6 +108,15 @@ export const EmailComposer: FC<Props> = ({ analysis }) => {
       {businessName && (
         <div className="notice" style={{ marginBottom: 12 }}>
           Outreach for <strong>{businessName}</strong>
+        </div>
+      )}
+
+      {missingFacts.length > 0 && (
+        <div className="notice warn" style={{ marginBottom: 12 }}>
+          {missingFacts.includes("city")
+            ? "City missing — location-specific copy is turned off so the email won't name the wrong town. "
+            : ""}
+          Add the {missingFacts.join(" and ")} for this prospect to personalize the outreach.
         </div>
       )}
 
