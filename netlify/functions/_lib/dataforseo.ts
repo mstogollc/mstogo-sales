@@ -128,9 +128,10 @@ export async function fetchDataForSeoSnapshot(
       configured: true,
       rankSignals: [
         {
-          label: "DataForSEO",
-          level: "yellow",
-          detail: "No website supplied — could not run a SERP snapshot.",
+          label: "Web presence",
+          level: "red",
+          detail:
+            "No website on file — there's no domain to rank, so every search hands this prospect's customers to competitors. Prime opportunity for a first MS2GO site.",
         },
       ],
     };

@@ -14,6 +14,7 @@ interface ProposalBody {
   recommendedTier?: "Basic" | "Growth" | "Premium";
   rep?: { name?: string; email?: string };
   goals?: string;
+  noWebsite?: boolean;
   leadId?: string;
   prospectId?: string;
 }
@@ -34,16 +35,35 @@ function fallbackProposal(body: ProposalBody): string {
           .join("\n")
       : "  • Findings to be confirmed on the discovery call.";
 
+  const standingHeader = body.noWebsite ? "Where you stand today (no website yet)" : "Where you stand today";
+  const standingBody = body.noWebsite
+    ? [
+        signalsList,
+        "  • You don't have a website yet — every search for your business sends a potential customer to a competitor who does.",
+      ].join("\n")
+    : signalsList;
+
+  const whatWeDo = body.noWebsite
+    ? [
+        "What we'll do",
+        "  • Build your first professional website — fast-loading, mobile-first, and built to convert.",
+        `  • Recommended package: ${tier.tier} — $${tier.price}/${tier.cadence}`,
+        `  • ${tier.summary}`,
+      ].join("\n")
+    : [
+        "What we'll do",
+        `  • Recommended package: ${tier.tier} — $${tier.price}/${tier.cadence}`,
+        `  • ${tier.summary}`,
+      ].join("\n");
+
   return [
     `MS2GO Proposal for ${business}`,
     `Prepared by ${rep}, MS2GO`,
     "",
-    "Where you stand today",
-    signalsList,
+    standingHeader,
+    standingBody,
     "",
-    "What we'll do",
-    `  • Recommended package: ${tier.tier} — $${tier.price}/${tier.cadence}`,
-    `  • ${tier.summary}`,
+    whatWeDo,
     "",
     `Goals we'll target${body.goals ? ": " + body.goals : "."}`,
     "",
@@ -78,12 +98,18 @@ export default async (req: Request, _ctx: Context) => {
     "You are an MS2GO sales strategist writing a one-page proposal. Structure it as: title, " +
     "'Where you stand today', 'What we'll do', 'Investment', 'Goals', and 'Next step'. " +
     "Speak in plain English to the business owner. Do not mention APIs, AI, models, or prompts. " +
+    (body.noWebsite
+      ? "This prospect does NOT currently have a website. Never imply they already have one, never reference " +
+        "their current site, and do not include any placeholder website URL. Frame the opportunity as MS2GO " +
+        "building their first professional website, and treat the missing site as the core gap to close. "
+      : "") +
     "Keep it under 350 words.";
 
   const userPrompt = [
     `Business: ${body.businessName}`,
     body.contactName ? `Decision maker: ${body.contactName}${body.contactRole ? " (" + body.contactRole + ")" : ""}` : null,
     `Rep: ${rep} (${repEmail})`,
+    body.noWebsite ? "Website status: prospect has no website yet — MS2GO will build their first one." : null,
     `Recommended package: ${recommended.tier} — $${recommended.price}/${recommended.cadence}`,
     `Package summary: ${recommended.summary}`,
     body.goals ? `Stated goals: ${body.goals}` : null,
@@ -128,6 +154,7 @@ export default async (req: Request, _ctx: Context) => {
             contact_name: body.contactName,
             goals: body.goals,
             tier: recommended.tier,
+            no_website: body.noWebsite ?? false,
             source: result.source,
           },
         })

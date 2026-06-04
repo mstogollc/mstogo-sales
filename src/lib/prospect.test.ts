@@ -58,6 +58,12 @@ describe("active prospect store", () => {
     });
   });
 
+  it("persists the no-website flag", () => {
+    setActiveProspect({ businessName: "Bayou Plumbing" });
+    updateActiveProspect({ noWebsite: true });
+    expect(stored()).toMatchObject({ businessName: "Bayou Plumbing", noWebsite: true });
+  });
+
   it("clears storage when set to null", () => {
     setActiveProspect({ businessName: "Temp" });
     setActiveProspect(null);

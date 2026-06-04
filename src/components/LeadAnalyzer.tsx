@@ -11,6 +11,7 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
   const prospect = useActiveProspect();
   const [businessName, setBusinessName] = useState(prospect?.businessName ?? "");
   const [website, setWebsite] = useState(prospect?.website ?? "");
+  const [noWebsite, setNoWebsite] = useState<boolean>(prospect?.noWebsite ?? false);
   const [city, setCity] = useState(prospect?.city ?? "");
   const [state, setState] = useState(prospect?.state ?? "");
   const [notes, setNotes] = useState("");
@@ -27,6 +28,7 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
       prefilledFor.current = key;
       setBusinessName(prospect?.businessName ?? "");
       setWebsite(prospect?.website ?? "");
+      setNoWebsite(prospect?.noWebsite ?? false);
       setCity(prospect?.city ?? "");
       setState(prospect?.state ?? "");
     }
@@ -34,15 +36,19 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
 
   async function handleAnalyze() {
     setError(null);
-    if (!businessName.trim() && !website.trim()) {
-      setError("Add a business name or website to run the analysis.");
+    if (!businessName.trim() && (noWebsite || !website.trim())) {
+      setError(
+        noWebsite
+          ? "Add a business name to run the analysis."
+          : "Add a business name or website to run the analysis.",
+      );
       return;
     }
     setLoading(true);
     try {
       const data = await api.analyzeLead({
         businessName: businessName.trim() || undefined,
-        website: website.trim() || undefined,
+        website: noWebsite ? undefined : website.trim() || undefined,
         city: city.trim() || undefined,
         state: state.trim() || undefined,
         notes: notes.trim() || undefined,
@@ -51,7 +57,10 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
       onAnalysisReady(data);
       updateActiveProspect({
         businessName: data.lead.businessName ?? (businessName.trim() || undefined),
-        website: data.placeProfile.website ?? data.lead.website ?? (website.trim() || undefined),
+        website: noWebsite
+          ? undefined
+          : data.placeProfile.website ?? data.lead.website ?? (website.trim() || undefined),
+        noWebsite,
         phone: data.placeProfile.internationalPhone,
         address: data.placeProfile.formattedAddress ?? data.lead.address,
         city: data.lead.city ?? (city.trim() || undefined),
@@ -96,11 +105,29 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
             <label htmlFor="site">Website</label>
             <input
               id="site"
-              placeholder="joespizza.com"
-              value={website}
+              placeholder={noWebsite ? "No website yet" : "joespizza.com"}
+              value={noWebsite ? "" : website}
+              disabled={noWebsite}
               onChange={(e) => setWebsite(e.target.value)}
             />
           </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label className="checkbox-row" htmlFor="intel-no-website">
+            <input
+              id="intel-no-website"
+              type="checkbox"
+              checked={noWebsite}
+              onChange={(e) => {
+                setNoWebsite(e.target.checked);
+                updateActiveProspect({ noWebsite: e.target.checked });
+              }}
+            />
+            <span>
+              <strong>No existing website</strong> — skip the website &amp; SEO crawl. We'll position MS2GO to build
+              their first professional site.
+            </span>
+          </label>
         </div>
         <div className="row" style={{ marginTop: 12 }}>
           <div>

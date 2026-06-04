@@ -3,6 +3,7 @@ import { LeadAnalyzer } from "./components/LeadAnalyzer";
 import { LeadListGenerator, createLeadSearchState, type LeadSearchState } from "./components/LeadListGenerator";
 import { EmailComposer } from "./components/EmailComposer";
 import { ProposalBuilder } from "./components/ProposalBuilder";
+import { MapPackHeatMap } from "./components/MapPackHeatMap";
 import { TrainingHub } from "./components/TrainingHub";
 import { PipelineDashboard } from "./components/PipelineDashboard";
 import { PayoutSetup } from "./components/PayoutSetup";
@@ -86,6 +87,7 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
         />
       )}
       {module === "intel" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
+      {module === "heatmap" && <MapPackHeatMap />}
       {module === "proposal" && <ProposalBuilder analysis={analysis} />}
       {module === "outreach" && <EmailComposer analysis={analysis} />}
       {module === "calendar" && <AppointmentCalendar />}

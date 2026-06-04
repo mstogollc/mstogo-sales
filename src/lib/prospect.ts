@@ -20,6 +20,8 @@ export interface ActiveProspect {
   state?: string;
   industry?: string;
   linkedinUrl?: string;
+  /** Prospect has no website yet — MS2GO would build their first one. */
+  noWebsite?: boolean;
 }
 
 /**

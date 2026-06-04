@@ -29,6 +29,7 @@ describe("resolveRoute", () => {
     expect(resolveRoute("/sales-ops")).toEqual({ id: "ops", module: "command-center" });
     expect(resolveRoute("/sales-ops/leads")).toEqual({ id: "ops", module: "leads" });
     expect(resolveRoute("/sales-ops/intel")).toEqual({ id: "ops", module: "intel" });
+    expect(resolveRoute("/sales-ops/heat-map")).toEqual({ id: "ops", module: "heatmap" });
     expect(resolveRoute("/sales-ops/proposals")).toEqual({ id: "ops", module: "proposal" });
     expect(resolveRoute("/sales-ops/outreach")).toEqual({ id: "ops", module: "outreach" });
     expect(resolveRoute("/sales-ops/calendar")).toEqual({ id: "ops", module: "calendar" });

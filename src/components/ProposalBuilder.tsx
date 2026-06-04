@@ -1,6 +1,6 @@
 import { useState, type FC } from "react";
 import { api, type AnalyzeResponse } from "../api";
-import { useActiveProspect } from "../lib/prospect";
+import { useActiveProspect, updateActiveProspect } from "../lib/prospect";
 
 interface Props {
   analysis: AnalyzeResponse | null;
@@ -50,6 +50,7 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   const [tier, setTier] = useState<"Basic" | "Growth" | "Premium">(
     analysis?.recommendation.tier || "Growth",
   );
+  const [noWebsite, setNoWebsite] = useState<boolean>(prospect?.noWebsite ?? false);
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,17 +68,25 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
       const goalsWithIndustry = [industry ? `Industry: ${industry}` : null, goals.trim() || null]
         .filter(Boolean)
         .join("\n");
+      // When the prospect has no website, drop any website/SEO-derived signals so
+      // the proposal never references a site that doesn't exist.
+      const rawSignals = analysis
+        ? [...analysis.placeProfile.signals, ...(analysis.seoSnapshot.rankSignals || [])]
+        : [];
+      const topSignals = (noWebsite
+        ? rawSignals.filter((s) => !/website|seo|organic|domain|dataforseo/i.test(s.label))
+        : rawSignals
+      ).slice(0, 5);
       const res = await api.proposal({
         businessName,
         contactName: contactName || undefined,
         contactRole: contactRole || undefined,
         overall: analysis?.placeProfile.overall,
         reviewCount: analysis?.placeProfile.userRatingCount,
-        topSignals: analysis
-          ? [...analysis.placeProfile.signals, ...(analysis.seoSnapshot.rankSignals || [])].slice(0, 5)
-          : undefined,
+        topSignals: topSignals.length ? topSignals : undefined,
         recommendedTier: tier,
         goals: goalsWithIndustry || undefined,
+        noWebsite: noWebsite || undefined,
       });
       setOutput(res.proposal);
     } catch (err) {
@@ -148,6 +157,24 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
             />
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <label className="checkbox-row" htmlFor="no-website">
+          <input
+            id="no-website"
+            type="checkbox"
+            checked={noWebsite}
+            onChange={(e) => {
+              setNoWebsite(e.target.checked);
+              updateActiveProspect({ noWebsite: e.target.checked });
+            }}
+          />
+          <span>
+            <strong>No existing website</strong> — this prospect doesn't have a website yet. MS2GO will build their
+            first professional site, and the proposal will skip any current-website analysis.
+          </span>
+        </label>
       </div>
 
       <div style={{ marginTop: 12 }}>

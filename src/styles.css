@@ -451,6 +451,38 @@ select:focus {
   border-color: var(--ms2go-blue);
 }
 
+input:disabled {
+  background: var(--ms2go-gray-50);
+  color: var(--ms2go-gray-500);
+  cursor: not-allowed;
+}
+
+/* Inline checkbox + explanatory label (e.g. "No existing website"). */
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ms2go-gray-700);
+  cursor: pointer;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: auto;
+  margin-top: 2px;
+  flex: none;
+  cursor: pointer;
+}
+
+.checkbox-row strong {
+  color: var(--ms2go-gray-900);
+}
+
 button.primary {
   background: var(--ms2go-blue);
   color: white;
@@ -631,6 +663,127 @@ pre.preview {
   font: inherit;
   font-size: 14px;
   margin: 0;
+}
+
+/* ===== Map Pack Heat Map ===== */
+.heatmap-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.heatmap-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  border: 1px solid var(--ms2go-gray-200);
+  border-radius: 10px;
+  background: var(--ms2go-gray-50);
+  min-width: 140px;
+}
+
+.heatmap-stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ms2go-navy);
+}
+
+.heatmap-stat-label {
+  font-size: 12px;
+  color: var(--ms2go-gray-500);
+}
+
+.heatmap-readout {
+  font-size: 14px;
+  color: var(--ms2go-gray-700);
+  margin: 0 0 14px;
+}
+
+.heatmap-grid {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+}
+
+.heat-green {
+  background: var(--ms2go-green);
+}
+
+.heat-yellow {
+  background: var(--ms2go-yellow);
+}
+
+.heat-red {
+  background: var(--ms2go-red);
+}
+
+.heatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--ms2go-gray-700);
+}
+
+.heatmap-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heat-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.heatmap-empty {
+  border: 1px dashed var(--ms2go-gray-200);
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-align: center;
+  background: var(--ms2go-gray-50);
+}
+
+.heatmap-empty-badge {
+  display: inline-block;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: white;
+  background: var(--ms2go-navy);
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+}
+
+.heatmap-empty-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ms2go-navy);
+  margin: 0 0 8px;
+}
+
+.heatmap-empty-body {
+  font-size: 14px;
+  color: var(--ms2go-gray-700);
+  margin: 0 auto;
+  max-width: 460px;
+  line-height: 1.55;
 }
 
 /* Printable document letterhead (proposals + notes) */

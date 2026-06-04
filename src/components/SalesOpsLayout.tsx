@@ -4,6 +4,7 @@ export type SalesOpsModuleId =
   | "command-center"
   | "leads"
   | "intel"
+  | "heatmap"
   | "proposal"
   | "outreach"
   | "calendar"
@@ -38,6 +39,12 @@ export const SALES_OPS_NAV: NavItem[] = [
     label: "Lead Intel",
     description: "Pre-meeting business brief",
     path: "/sales-ops/intel",
+  },
+  {
+    id: "heatmap",
+    label: "Map Pack Heat Map",
+    description: "Local 3-pack ranking grid",
+    path: "/sales-ops/heat-map",
   },
   {
     id: "proposal",

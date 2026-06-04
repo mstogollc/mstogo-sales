@@ -85,7 +85,20 @@ export const TrainingHub: FC = () => {
       {output && (
         <>
           <div className="divider" />
-          <pre className="preview">{output}</pre>
+          <div className="actions no-print" style={{ marginTop: 0, marginBottom: 12 }}>
+            <button className="ghost" type="button" onClick={() => window.print()}>
+              Print assistant help
+            </button>
+          </div>
+          <div className="print-document">
+            <div className="print-letterhead">
+              <span className="print-brand">MS2GO</span>
+              <span className="print-brand-sub">
+                Assistant Help{topic.trim() ? ` · ${topic.trim()}` : ""}
+              </span>
+            </div>
+            <pre className="preview notes-output">{output}</pre>
+          </div>
         </>
       )}
       {error && <p className="error">{error}</p>}

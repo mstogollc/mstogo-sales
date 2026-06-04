@@ -15,8 +15,8 @@ All third-party calls live in `netlify/functions/_lib/*` so API keys never reach
 | Provider | Env var(s) | Used by |
 | --- | --- | --- |
 | **Supabase** (CRM, auth, RLS, audit log) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server) · `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (browser) | `analyze-lead`, `draft-email`, `send-email`, `proposal`, `qualify-lead`, `dashboard` |
-| Google Places (New) | `GOOGLE_PLACES_API_KEY` | `analyze-lead` |
-| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | `analyze-lead` |
+| Google Places (New) | `GOOGLE_PLACES_API_KEY` | `analyze-lead`, `heat-map` |
+| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | `analyze-lead`, `heat-map` |
 | OpenAI | `OPENAI_API_KEY` | `analyze-lead`, `draft-email`, `rewrite`, `proposal`, `training-content` |
 | Resend | `RESEND_API_KEY`, optional `MS2GO_FROM_EMAIL`, `MS2GO_REPLY_TO` | `send-email` |
 | Calendly | `CALENDLY_PERSONAL_ACCESS_TOKEN` | (reserved for booking flow) |

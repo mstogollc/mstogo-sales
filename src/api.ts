@@ -55,6 +55,31 @@ export interface AnalyzeResponse {
   narrativeSource: "openai" | "fallback";
 }
 
+export type HeatLevel = "green" | "yellow" | "red";
+
+export interface HeatCell {
+  row: number;
+  col: number;
+  lat: number;
+  lng: number;
+  rank: number | null;
+  level: HeatLevel;
+}
+
+export interface HeatMapResponse {
+  configured: boolean;
+  status: "ok" | "setup_required" | "needs_location" | "unavailable";
+  message: string;
+  businessName?: string;
+  keyword?: string;
+  center?: { lat: number; lng: number };
+  gridSize: number;
+  stepMiles: number;
+  cells: HeatCell[];
+  averageRank: number | null;
+  topThreeShare: number;
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
@@ -111,6 +136,7 @@ export const api = {
     topSignals?: PlaceSignal[];
     recommendedTier?: "Basic" | "Growth" | "Premium";
     goals?: string;
+    noWebsite?: boolean;
     rep?: { name?: string; email?: string };
   }) =>
     postJson<{
@@ -129,6 +155,16 @@ export const api = {
       "/api/training-content",
       body,
     ),
+
+  heatMap: (body: {
+    businessName?: string;
+    keyword?: string;
+    city?: string;
+    state?: string;
+    address?: string;
+    gridSize?: number;
+    stepMiles?: number;
+  }) => postJson<HeatMapResponse>("/api/heat-map", body),
 
   sendEmail: (body: {
     to: string;
