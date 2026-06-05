@@ -11,7 +11,8 @@ export type SalesOpsModuleId =
   | "pipeline"
   | "payouts"
   | "training"
-  | "integrations";
+  | "integrations"
+  | "usage";
 
 interface NavItem {
   id: SalesOpsModuleId;
@@ -19,6 +20,7 @@ interface NavItem {
   description: string;
   path: string;
   badge?: string;
+  adminOnly?: boolean;
 }
 
 export const SALES_OPS_NAV: NavItem[] = [
@@ -88,6 +90,13 @@ export const SALES_OPS_NAV: NavItem[] = [
     description: "DocuSign · Gusto · Dropbox · Resend",
     path: "/sales-ops/integrations",
   },
+  {
+    id: "usage",
+    label: "Usage & Cost",
+    description: "API usage by rep & provider",
+    path: "/sales-ops/admin/usage",
+    adminOnly: true,
+  },
 ];
 
 interface Props {
@@ -95,6 +104,7 @@ interface Props {
   onNavigate: (id: SalesOpsModuleId) => void;
   userEmail?: string | null;
   isSuperAdmin?: boolean;
+  isAdmin?: boolean;
   onSignOut?: () => void;
   children: ReactNode;
 }
@@ -104,9 +114,11 @@ export const SalesOpsLayout: FC<Props> = ({
   onNavigate,
   userEmail,
   isSuperAdmin,
+  isAdmin,
   onSignOut,
   children,
 }) => {
+  const visibleNav = SALES_OPS_NAV.filter((n) => !n.adminOnly || isAdmin);
   const activeItem = SALES_OPS_NAV.find((n) => n.id === activeId) ?? SALES_OPS_NAV[0];
   return (
     <div className="ops-shell">
@@ -120,7 +132,7 @@ export const SalesOpsLayout: FC<Props> = ({
         </div>
 
         <nav className="ops-nav">
-          {SALES_OPS_NAV.map((item) => {
+          {visibleNav.map((item) => {
             const active = item.id === activeId;
             return (
               <button

@@ -1,3 +1,5 @@
+import { authHeader } from "./lib/supabase";
+
 export interface PlaceSignal {
   label: string;
   level: "green" | "yellow" | "red";
@@ -83,7 +85,7 @@ export interface HeatMapResponse {
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(await authHeader()) },
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };

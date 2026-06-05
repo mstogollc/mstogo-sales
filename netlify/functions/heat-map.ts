@@ -1,6 +1,8 @@
 import type { Context } from "@netlify/functions";
 import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { getEnv } from "./_lib/env";
+import { currentUser } from "./_lib/supabase";
+import { actorFromUser, logUsage } from "./_lib/usage";
 import {
   buildGeoGrid,
   rankToHeat,
@@ -237,5 +239,24 @@ export default async (req: Request, _ctx: Context) => {
   }
 
   const result = await runHeatMap(body);
+
+  // Only a status "ok" run actually fired the upstream SERP grid (cost).
+  // setup_required / needs_location runs are free and not logged.
+  if (result.status === "ok") {
+    const me = await currentUser(req);
+    await logUsage(actorFromUser(me), {
+      actionType: "heat_map_scan",
+      provider: "DataForSEO",
+      units: result.cells.length,
+      metadata: {
+        city: body.city,
+        state: body.state,
+        gridSize: result.gridSize,
+        stepMiles: result.stepMiles,
+        topThreeShare: result.topThreeShare,
+      },
+    });
+  }
+
   return ok(result as unknown as Record<string, unknown>);
 };

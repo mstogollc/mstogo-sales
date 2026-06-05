@@ -25,6 +25,7 @@ const OPS_PATHS: Record<string, SalesOpsModuleId> = {
   "/sales-ops/payouts": "payouts",
   "/sales-ops/training": "training",
   "/sales-ops/integrations": "integrations",
+  "/sales-ops/admin/usage": "usage",
 };
 
 export function resolveRoute(pathname: string): Route {

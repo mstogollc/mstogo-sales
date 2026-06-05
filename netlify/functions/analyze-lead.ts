@@ -5,6 +5,7 @@ import { fetchDataForSeoSnapshot, type DataForSeoSnapshot } from "./_lib/datafor
 import { chat } from "./_lib/openai";
 import { MS2GO_BRAND, recommendPackage } from "./_lib/brand";
 import { currentUser, tryPersist } from "./_lib/supabase";
+import { actorFromUser, logUsage } from "./_lib/usage";
 
 interface AnalyzeBody {
   businessName?: string;
@@ -160,6 +161,34 @@ export default async (req: Request, _ctx: Context) => {
         });
       }
     }
+
+    const actor = actorFromUser(me);
+    const briefMeta = {
+      city: body.city,
+      state: body.state,
+      industry: place.primaryCategory,
+      hasWebsite: Boolean(body.website),
+    };
+    await logUsage(actor, {
+      actionType: "google_places_enrichment",
+      provider: "Google Places",
+      units: 1,
+      metadata: { matched: place.matched, ...briefMeta },
+    });
+    if (seo.configured) {
+      await logUsage(actor, {
+        actionType: "dataforseo_seo_analysis",
+        provider: "DataForSEO",
+        units: 1,
+        metadata: { domain: seo.domain, ...briefMeta },
+      });
+    }
+    await logUsage(actor, {
+      actionType: "ai_business_brief",
+      provider: "OpenAI/LLM",
+      units: 1,
+      metadata: { source: ai.source, ...briefMeta },
+    });
 
     return ok({
       lead: {

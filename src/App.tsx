@@ -9,6 +9,7 @@ import { PipelineDashboard } from "./components/PipelineDashboard";
 import { PayoutSetup } from "./components/PayoutSetup";
 import { CommandCenter } from "./components/CommandCenter";
 import { IntegrationsHub } from "./components/IntegrationsHub";
+import { UsageDashboard } from "./components/UsageDashboard";
 import { AppointmentCalendar } from "./components/AppointmentCalendar";
 import { SalesOpsLayout, type SalesOpsModuleId } from "./components/SalesOpsLayout";
 import type { AnalyzeResponse } from "./api";
@@ -31,6 +32,7 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
   const [module, setModule] = useState<SalesOpsModuleId>(initialModule);
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [leadSearch, setLeadSearch] = useState<LeadSearchState>(createLeadSearchState);
 
   useEffect(() => {
@@ -48,11 +50,28 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => {
+    const client = supabase;
+
+    async function loadRole(userId: string | undefined) {
+      if (!userId) {
+        setRole(null);
+        return;
+      }
+      const { data } = await client
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+      setRole((data?.role as string | undefined) ?? null);
+    }
+
+    client.auth.getSession().then(({ data }) => {
       setUserEmail(data.session?.user.email ?? null);
+      void loadRole(data.session?.user.id);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = client.auth.onAuthStateChange((_e, s) => {
       setUserEmail(s?.user.email ?? null);
+      void loadRole(s?.user.id);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -67,34 +86,43 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
 
   const isSuperAdmin = userEmail ? SUPER_ADMIN_EMAILS.has(userEmail.toLowerCase()) : false;
   const isPrivileged = userEmail ? PRIVILEGED_EMAILS.has(userEmail.toLowerCase()) : false;
+  // Admins (super admins + managers) can see the Usage & Cost dashboard. Role
+  // comes from the profile; the email allowlist covers the super-admin seats
+  // before the profile row loads. The server independently re-checks the role.
+  const isAdmin = isSuperAdmin || role === "super_admin" || role === "manager";
+
+  // Hard guard: a non-admin can't land on the usage route (deep link / refresh).
+  const safeModule: SalesOpsModuleId = module === "usage" && !isAdmin ? "command-center" : module;
 
   return (
     <SalesOpsLayout
-      activeId={module}
+      activeId={safeModule}
       onNavigate={navigate}
       userEmail={userEmail}
       isSuperAdmin={isSuperAdmin}
+      isAdmin={isAdmin}
       onSignOut={() => supabase?.auth.signOut()}
     >
-      {module === "command-center" && (
+      {safeModule === "command-center" && (
         <CommandCenter onNavigate={navigate} userEmail={userEmail} isSuperAdmin={isPrivileged} />
       )}
-      {module === "leads" && (
+      {safeModule === "leads" && (
         <LeadListGenerator
           state={leadSearch}
           setState={setLeadSearch}
           onUseLead={() => navigate("intel")}
         />
       )}
-      {module === "intel" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
-      {module === "heatmap" && <MapPackHeatMap />}
-      {module === "proposal" && <ProposalBuilder analysis={analysis} />}
-      {module === "outreach" && <EmailComposer analysis={analysis} />}
-      {module === "calendar" && <AppointmentCalendar />}
-      {module === "pipeline" && <PipelineDashboard />}
-      {module === "payouts" && <PayoutSetup />}
-      {module === "training" && <TrainingHub />}
-      {module === "integrations" && <IntegrationsHub />}
+      {safeModule === "intel" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
+      {safeModule === "heatmap" && <MapPackHeatMap />}
+      {safeModule === "proposal" && <ProposalBuilder analysis={analysis} />}
+      {safeModule === "outreach" && <EmailComposer analysis={analysis} />}
+      {safeModule === "calendar" && <AppointmentCalendar />}
+      {safeModule === "pipeline" && <PipelineDashboard />}
+      {safeModule === "payouts" && <PayoutSetup />}
+      {safeModule === "training" && <TrainingHub />}
+      {safeModule === "integrations" && <IntegrationsHub />}
+      {safeModule === "usage" && isAdmin && <UsageDashboard />}
     </SalesOpsLayout>
   );
 };

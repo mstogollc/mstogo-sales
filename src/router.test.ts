@@ -37,6 +37,7 @@ describe("resolveRoute", () => {
     expect(resolveRoute("/sales-ops/payouts")).toEqual({ id: "ops", module: "payouts" });
     expect(resolveRoute("/sales-ops/training")).toEqual({ id: "ops", module: "training" });
     expect(resolveRoute("/sales-ops/integrations")).toEqual({ id: "ops", module: "integrations" });
+    expect(resolveRoute("/sales-ops/admin/usage")).toEqual({ id: "ops", module: "usage" });
   });
 
   it("falls back to the command center for unknown paths", () => {
@@ -48,5 +49,6 @@ describe("resolveRoute", () => {
     expect(pathForModule("command-center")).toBe("/sales-ops");
     expect(pathForModule("leads")).toBe("/sales-ops/leads");
     expect(pathForModule("integrations")).toBe("/sales-ops/integrations");
+    expect(pathForModule("usage")).toBe("/sales-ops/admin/usage");
   });
 });

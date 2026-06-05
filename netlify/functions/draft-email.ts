@@ -3,6 +3,7 @@ import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { chat } from "./_lib/openai";
 import { MS2GO_BRAND } from "./_lib/brand";
 import { currentUser, tryPersist } from "./_lib/supabase";
+import { actorFromUser, logUsage } from "./_lib/usage";
 
 /**
  * Verified facts about the prospect's business. These come from the rep's
@@ -199,6 +200,18 @@ export default async (req: Request, _ctx: Context) => {
       if (error) throw error;
     });
   }
+
+  await logUsage(actorFromUser(me), {
+    actionType: "ai_email_draft",
+    provider: "OpenAI/LLM",
+    units: 1,
+    metadata: {
+      source: result.source,
+      intent: body.intent ?? "first_touch",
+      tone: body.tone ?? "consultative",
+      industry: body.industry,
+    },
+  });
 
   return ok({
     subject,
