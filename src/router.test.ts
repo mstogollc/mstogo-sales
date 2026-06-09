@@ -39,6 +39,13 @@ describe("resolveRoute", () => {
     expect(resolveRoute("/sales-ops/integrations")).toEqual({ id: "ops", module: "integrations" });
   });
 
+  it("resolves legacy heat-map aliases to the heatmap module", () => {
+    expect(resolveRoute("/sales-ops/map-pack-heat-map")).toEqual({ id: "ops", module: "heatmap" });
+    expect(resolveRoute("/sales-ops/heatmap")).toEqual({ id: "ops", module: "heatmap" });
+    expect(resolveRoute("/sales-ops/Map-Pack-Heat-Map/")).toEqual({ id: "ops", module: "heatmap" });
+    expect(resolveRoute("/sales-ops/proposal")).toEqual({ id: "ops", module: "proposal" });
+  });
+
   it("falls back to the command center for unknown paths", () => {
     expect(resolveRoute("/")).toEqual({ id: "ops", module: "command-center" });
     expect(resolveRoute("/anything-else")).toEqual({ id: "ops", module: "command-center" });

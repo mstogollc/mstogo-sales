@@ -27,6 +27,14 @@ const OPS_PATHS: Record<string, SalesOpsModuleId> = {
   "/sales-ops/integrations": "integrations",
 };
 
+// Legacy paths that earlier builds linked to; keep them resolving to the live
+// module so existing bookmarks and indexed links don't dead-end on the wrong page.
+const OPS_PATH_ALIASES: Record<string, SalesOpsModuleId> = {
+  "/sales-ops/map-pack-heat-map": "heatmap",
+  "/sales-ops/heatmap": "heatmap",
+  "/sales-ops/proposal": "proposal",
+};
+
 export function resolveRoute(pathname: string): Route {
   const normalized = pathname.replace(/\/+$/, "").toLowerCase() || "/";
   switch (normalized) {
@@ -44,6 +52,10 @@ export function resolveRoute(pathname: string): Route {
 
   if (normalized in OPS_PATHS) {
     return { id: "ops", module: OPS_PATHS[normalized] };
+  }
+
+  if (normalized in OPS_PATH_ALIASES) {
+    return { id: "ops", module: OPS_PATH_ALIASES[normalized] };
   }
 
   return { id: "ops", module: "command-center" };
