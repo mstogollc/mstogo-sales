@@ -838,6 +838,20 @@ pre.preview {
     visibility: visible;
   }
 
+  /* When a page has more than one printable document, the Print button tags
+     <body> so only the requested document is revealed. */
+  body.printing-playbook .print-doc-notes,
+  body.printing-playbook .print-doc-notes *,
+  body.printing-notes .print-doc-playbook,
+  body.printing-notes .print-doc-playbook * {
+    visibility: hidden;
+  }
+
+  body.printing-playbook .print-doc-notes,
+  body.printing-notes .print-doc-playbook {
+    display: none;
+  }
+
   .print-document {
     position: static;
     width: 100%;

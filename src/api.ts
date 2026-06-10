@@ -131,6 +131,9 @@ export const api = {
     businessName?: string;
     contactName?: string;
     contactRole?: string;
+    city?: string;
+    state?: string;
+    industry?: string;
     overall?: "green" | "yellow" | "red";
     reviewCount?: number;
     topSignals?: PlaceSignal[];
