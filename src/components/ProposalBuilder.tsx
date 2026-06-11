@@ -54,8 +54,13 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState(prospect?.contactEmail ?? "");
+  const [emailing, setEmailing] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
 
   const industry = industryChoice === CUSTOM_INDUSTRY ? customIndustry.trim() : industryChoice;
+  const proposalCity = prospect?.city || analysis?.lead.city || "";
+  const proposalState = prospect?.state || analysis?.lead.state || "";
 
   async function handleBuild() {
     setError(null);
@@ -81,6 +86,9 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
         businessName,
         contactName: contactName || undefined,
         contactRole: contactRole || undefined,
+        city: proposalCity || undefined,
+        state: proposalState || undefined,
+        industry: industry || undefined,
         overall: analysis?.placeProfile.overall,
         reviewCount: analysis?.placeProfile.userRatingCount,
         topSignals: topSignals.length ? topSignals : undefined,
@@ -89,10 +97,46 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
         noWebsite: noWebsite || undefined,
       });
       setOutput(res.proposal);
+      setEmailStatus(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not build the proposal.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleEmailProposal() {
+    setError(null);
+    setEmailStatus(null);
+    if (!output.trim()) {
+      setError("Build the proposal first, then email it.");
+      return;
+    }
+    if (!recipientEmail.trim()) {
+      setError("Add the recipient's email address to send this proposal.");
+      return;
+    }
+    setEmailing(true);
+    try {
+      const res = await api.sendEmail({
+        to: recipientEmail.trim(),
+        subject: `Your MS2GO proposal${businessName ? ` for ${businessName}` : ""}`,
+        text: output,
+        kind: "proposal",
+      });
+      if (res.delivery.status === "sent") {
+        setEmailStatus(`Sent to ${recipientEmail.trim()} — Resend confirmed delivery.`);
+      } else if (res.delivery.status === "queued_local") {
+        setEmailStatus(
+          "Saved and ready to send. Email delivery (Resend) isn't connected on this workspace yet — once the MS2GO sending domain is verified, this proposal goes out automatically.",
+        );
+      } else {
+        setError(`Could not send the proposal: ${res.delivery.reason}`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not email the proposal.");
+    } finally {
+      setEmailing(false);
     }
   }
 
@@ -105,10 +149,18 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
         <div className="notice" style={{ marginBottom: 12 }}>
           Proposal for <strong>{businessName}</strong>
           {industry ? ` · ${industry}` : ""}
+          {proposalCity ? ` · ${proposalCity}${proposalState ? `, ${proposalState}` : ""}` : ""}
         </div>
       ) : (
         <div className="notice" style={{ marginBottom: 12 }}>
           Select a lead or run a lead analysis first — proposals are stronger when grounded in real signals.
+        </div>
+      )}
+
+      {businessName && !proposalCity && (
+        <div className="notice warn" style={{ marginBottom: 12 }}>
+          No city set for this prospect — the proposal will use neutral wording like "your local market" instead of
+          naming a town, so it never references the wrong city. Add the city/state in Lead Intel to localize it.
         </div>
       )}
 
@@ -196,10 +248,36 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
       {output && (
         <>
           <div className="divider" />
-          <div className="actions no-print" style={{ marginTop: 0, marginBottom: 12 }}>
-            <button className="ghost" type="button" onClick={() => window.print()}>
-              Print / Save as PDF
-            </button>
+          <div className="no-print" style={{ marginBottom: 12 }}>
+            <label htmlFor="proposal-email">Email this proposal to</label>
+            <div className="row" style={{ marginTop: 6 }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  id="proposal-email"
+                  type="email"
+                  placeholder="owner@theirbusiness.com"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="actions" style={{ marginTop: 8 }}>
+              <button className="primary" type="button" onClick={handleEmailProposal} disabled={emailing}>
+                {emailing ? "Sending…" : "Email proposal"}
+              </button>
+              <button className="ghost" type="button" onClick={() => window.print()}>
+                Print / Save as PDF
+              </button>
+            </div>
+            <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>
+              "Email proposal" sends this exact copy from your MS2GO sending address. Prefer to personalize it first?
+              Use Print / Save as PDF and attach it, or paste it into the Email Outreach module.
+            </p>
+            {emailStatus && (
+              <div className="notice" style={{ marginTop: 8 }}>
+                {emailStatus}
+              </div>
+            )}
           </div>
           <div className="print-document">
             <div className="print-letterhead">

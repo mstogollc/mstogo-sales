@@ -1,5 +1,87 @@
 import { useState, type FC } from "react";
 import { api } from "../api";
+import { PACKAGE_SYSTEMS, SPEED_TO_LEAD_PLAYBOOK } from "../lib/trainingContent";
+
+/**
+ * Print only one document on a page that has several. We tag <body> with the
+ * target's class so the print stylesheet can hide the others, then clear it.
+ */
+function printOnly(target: "playbook" | "notes") {
+  if (typeof document === "undefined") return;
+  const cls = `printing-${target}`;
+  document.body.classList.add(cls);
+  const clear = () => {
+    document.body.classList.remove(cls);
+    window.removeEventListener("afterprint", clear);
+  };
+  window.addEventListener("afterprint", clear);
+  window.print();
+}
+
+const PackagePlaybook: FC = () => (
+  <section className="card">
+    <div className="actions no-print" style={{ marginTop: 0, marginBottom: 12, justifyContent: "space-between" }}>
+      <div>
+        <h2 style={{ margin: 0 }}>MS2GO package playbook</h2>
+        <p className="subtitle" style={{ margin: "4px 0 0" }}>
+          What every system does for the customer, and how MS2GO maximizes it. Built for new reps to learn fast and sell
+          with confidence.
+        </p>
+      </div>
+      <button className="ghost" type="button" onClick={() => printOnly("playbook")}>
+        Print playbook
+      </button>
+    </div>
+
+    <div className="print-document print-doc-playbook">
+      <div className="print-letterhead">
+        <span className="print-brand">MS2GO</span>
+        <span className="print-brand-sub">Package & Systems Playbook</span>
+      </div>
+
+      {PACKAGE_SYSTEMS.map((s) => (
+        <div key={s.id} className="playbook-entry" style={{ marginBottom: 18 }}>
+          <h3 style={{ marginBottom: 6 }}>{s.name}</h3>
+          <p style={{ margin: "0 0 4px" }}>
+            <strong>What it is:</strong> {s.whatItIs}
+          </p>
+          <p style={{ margin: "0 0 4px" }}>
+            <strong>What it does for the customer:</strong> {s.customerBenefit}
+          </p>
+          <p style={{ margin: 0 }}>
+            <strong>How MS2GO maximizes it:</strong> {s.howMs2goMaximizes}
+          </p>
+        </div>
+      ))}
+
+      <div className="divider" />
+      <h3 style={{ marginBottom: 6 }}>Speed-to-Lead playbook — never miss a call, respond in seconds</h3>
+      <p style={{ margin: "0 0 10px" }}>{SPEED_TO_LEAD_PLAYBOOK.promise}</p>
+
+      <p style={{ margin: "0 0 4px" }}>
+        <strong>Response SLA</strong>
+      </p>
+      <ul style={{ marginTop: 0 }}>
+        {SPEED_TO_LEAD_PLAYBOOK.sla.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ul>
+
+      <p style={{ margin: "8px 0 4px" }}>
+        <strong>How the system works</strong>
+      </p>
+      {SPEED_TO_LEAD_PLAYBOOK.steps.map((step) => (
+        <p key={step.title} style={{ margin: "0 0 6px" }}>
+          <strong>{step.title}:</strong> {step.detail}
+        </p>
+      ))}
+
+      <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
+        {SPEED_TO_LEAD_PLAYBOOK.note}
+      </p>
+    </div>
+  </section>
+);
 
 export const TrainingHub: FC = () => {
   const [topic, setTopic] = useState("");
@@ -33,7 +115,9 @@ export const TrainingHub: FC = () => {
   }
 
   return (
-    <section className="card">
+    <>
+      <PackagePlaybook />
+      <section className="card">
       <h2>Sales training</h2>
       <p className="subtitle">Generate lessons, talk tracks, role-plays, and objection handlers for the team.</p>
 
@@ -86,11 +170,11 @@ export const TrainingHub: FC = () => {
         <>
           <div className="divider" />
           <div className="actions no-print" style={{ marginTop: 0, marginBottom: 12 }}>
-            <button className="ghost" type="button" onClick={() => window.print()}>
+            <button className="ghost" type="button" onClick={() => printOnly("notes")}>
               Print assistant help
             </button>
           </div>
-          <div className="print-document">
+          <div className="print-document print-doc-notes">
             <div className="print-letterhead">
               <span className="print-brand">MS2GO</span>
               <span className="print-brand-sub">
@@ -102,6 +186,7 @@ export const TrainingHub: FC = () => {
         </>
       )}
       {error && <p className="error">{error}</p>}
-    </section>
+      </section>
+    </>
   );
 };
