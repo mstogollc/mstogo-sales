@@ -3,6 +3,7 @@ import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { chat } from "./_lib/openai";
 import { MS2GO_BRAND, recommendPackage } from "./_lib/brand";
 import { currentUser, tryPersist } from "./_lib/supabase";
+import { actorFromUser, logUsage } from "./_lib/usage";
 
 export interface ProposalBody {
   businessName?: string;
@@ -232,6 +233,17 @@ export default async (req: Request, _ctx: Context) => {
       proposalId = data.id;
     });
   }
+
+  await logUsage(actorFromUser(me), {
+    actionType: "ai_proposal_generation",
+    provider: "OpenAI/LLM",
+    units: 1,
+    metadata: {
+      source: result.source,
+      tier: recommended.tier,
+      noWebsite: body.noWebsite ?? false,
+    },
+  });
 
   return ok({
     proposal: result.text,

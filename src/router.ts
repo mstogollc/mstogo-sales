@@ -25,6 +25,7 @@ const OPS_PATHS: Record<string, SalesOpsModuleId> = {
   "/sales-ops/payouts": "payouts",
   "/sales-ops/training": "training",
   "/sales-ops/integrations": "integrations",
+  "/sales-ops/admin/usage": "usage",
 };
 
 // Legacy paths that earlier builds linked to; keep them resolving to the live

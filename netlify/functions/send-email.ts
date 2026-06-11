@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions";
 import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { sendEmail } from "./_lib/resend";
 import { currentUser, tryPersist } from "./_lib/supabase";
+import { actorFromUser, logUsage } from "./_lib/usage";
 
 interface SendBody {
   to?: string | string[];
@@ -63,6 +64,21 @@ export default async (req: Request, _ctx: Context) => {
       if (error) throw error;
     });
   }
+
+  const deliveryStatus =
+    typeof result === "object" && result && "status" in result
+      ? String((result as { status: unknown }).status)
+      : "unknown";
+  await logUsage(actorFromUser(me), {
+    actionType: "resend_email_send",
+    provider: "Resend",
+    units: recipients.length,
+    metadata: {
+      recipientCount: recipients.length,
+      kind: body.kind ?? "prospect",
+      deliveryStatus,
+    },
+  });
 
   return ok({
     kind: body.kind || "prospect",

@@ -165,6 +165,32 @@ Browser-side (Vite — public):
 All five are already configured in Netlify per the task brief. No secret values
 are committed to the repository.
 
+## Usage / Cost tracking migration
+
+**Migration file:** `supabase/migrations/20260605000000_usage_tracking.sql`
+
+Apply it the same way (SQL Editor / CLI / `psql`) after the foundation
+migration. It is idempotent.
+
+It creates:
+
+- `usage_events` — append-only ledger of portal activity + estimated external
+  API usage (DataForSEO, Google Places, OpenAI, Resend, ...). RLS: **only super
+  admins and managers can SELECT; no insert/update/delete policy** — rows are
+  written exclusively by Netlify Functions using the service-role key.
+- `rep_usage_limits` — per-rep monthly caps scaffold (not yet enforced). Super
+  admins can manage; admins/managers can read.
+- Views `v_usage_by_rep`, `v_usage_by_provider` (admin-only via underlying RLS).
+
+> **Service-role key required.** Usage logging inserts through
+> `SUPABASE_SERVICE_ROLE_KEY`. If that env var is unset, logging silently
+> no-ops (the rep-facing flow is never affected) and the Usage & Cost
+> dashboard will simply show no events.
+
+The admin dashboard lives at **`/sales-ops/admin/usage`** and is hidden from
+non-admin reps in the sidebar; the route and its data are gated server-side as
+well (a rep hitting the API gets `403`).
+
 ## Rollback
 
 There is no automated rollback (these are foundational tables). To rebuild

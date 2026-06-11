@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions";
 import { badRequest, json, methodNotAllowed, ok, readJson } from "./_lib/http";
 import { getEnv } from "./_lib/env";
 import { currentUser, tryPersist } from "./_lib/supabase";
+import { actorFromUser, logUsage } from "./_lib/usage";
 
 /**
  * POST /api/generate-leads
@@ -626,6 +627,21 @@ export default async (req: Request, _ctx: Context) => {
       });
       if (typeof result === "number") persisted = result;
     }
+
+    await logUsage(actorFromUser(me), {
+      actionType: "dataforseo_lead_search",
+      provider: "DataForSEO",
+      units: 1,
+      metadata: {
+        city,
+        state,
+        industry,
+        radiusMiles,
+        maxCount,
+        resultCount: leads.length,
+        rawCount: rawItems.length,
+      },
+    });
 
     if (leads.length === 0) {
       return ok({
