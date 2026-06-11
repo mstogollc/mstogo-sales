@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { runHeatMap } from "./heat-map";
+import { runHeatMap } from "../../netlify/functions/heat-map";
 
 const ORIGINAL = {
   places: process.env.GOOGLE_PLACES_API_KEY,
