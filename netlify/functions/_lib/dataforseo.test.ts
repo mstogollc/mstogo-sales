@@ -23,12 +23,47 @@ function makeResponse(body: unknown, status = 200): Response {
   });
 }
 
+// Aggregate-only shape (metrics, no keyword items).
 function overview(count: number, etv: number) {
   return {
     tasks: [
       {
         status_code: 20000,
-        result: [{ metrics: { organic: { count, etv }, paid: { count: 0 } } }],
+        result: [
+          { total_count: count, metrics: { organic: { count, etv }, paid: { count: 0 } } },
+        ],
+      },
+    ],
+  };
+}
+
+// Realistic ranked_keywords/live shape: aggregate metrics + per-keyword items.
+function rankedKeywords(opts: {
+  count: number;
+  etv: number;
+  items: Array<{ keyword: string; rank: number; volume?: number }>;
+}) {
+  return {
+    tasks: [
+      {
+        status_code: 20000,
+        result: [
+          {
+            total_count: opts.count,
+            items_count: opts.items.length,
+            metrics: {
+              organic: { count: opts.count, etv: opts.etv, pos_1: 10, pos_2_3: 24, pos_4_10: 96 },
+              paid: { count: 0 },
+            },
+            items: opts.items.map((it) => ({
+              keyword_data: {
+                keyword: it.keyword,
+                keyword_info: { search_volume: it.volume },
+              },
+              ranked_serp_element: { serp_item: { rank_absolute: it.rank, rank_group: it.rank } },
+            })),
+          },
+        ],
       },
     ],
   };
@@ -108,5 +143,104 @@ describe("fetchDataForSeoSnapshot", () => {
       async () => makeResponse({ tasks: [{ status_code: 20000, result: [] }] }),
     );
     expect(snap.status).toBe("unavailable");
+  });
+
+  it("calls the ranked_keywords endpoint", async () => {
+    let calledUrl = "";
+    const fetchImpl = (async (url: string) => {
+      calledUrl = String(url);
+      return makeResponse(overview(858, 2899.96));
+    }) as unknown as typeof fetch;
+    await fetchDataForSeoSnapshot("alderpestcontrol.com", fetchImpl);
+    expect(calledUrl).toContain("/dataforseo_labs/google/ranked_keywords/live");
+  });
+
+  it("parses real ranked_keywords metrics and keyword rows (Alder)", async () => {
+    const snap = await fetchDataForSeoSnapshot("alderpestcontrol.com", async () =>
+      makeResponse(
+        rankedKeywords({
+          count: 858,
+          etv: 2899.96,
+          items: [
+            { keyword: "pest control huntsville", rank: 3, volume: 1300 },
+            { keyword: "exterminator huntsville al", rank: 5, volume: 720 },
+          ],
+        }),
+      ),
+    );
+    expect(snap.status).toBe("available");
+    expect(snap.organicKeywordCount).toBe(858);
+    expect(Math.round(snap.organicTrafficEstimate ?? 0)).toBe(2900);
+    expect(snap.topKeywords).toEqual([
+      { keyword: "pest control huntsville", position: 3, searchVolume: 1300 },
+      { keyword: "exterminator huntsville al", position: 5, searchVolume: 720 },
+    ]);
+    // 858 keywords + ~2900 visits → both signals should be green.
+    expect(snap.rankSignals?.every((s) => s.level === "green")).toBe(true);
+  });
+
+  it("never emits blank keyword / zero-position garbage rows", async () => {
+    const snap = await fetchDataForSeoSnapshot("alderpestcontrol.com", async () =>
+      makeResponse(
+        rankedKeywords({
+          count: 858,
+          etv: 2899.96,
+          items: [
+            { keyword: "", rank: 0 },
+            { keyword: "   ", rank: 4 },
+            { keyword: "pest control huntsville", rank: 0 },
+            { keyword: "real keyword", rank: 2, volume: 100 },
+          ],
+        }),
+      ),
+    );
+    expect(snap.topKeywords).toEqual([
+      { keyword: "real keyword", position: 2, searchVolume: 100 },
+    ]);
+    expect(snap.topKeywords?.some((k) => k.keyword === "")).toBe(false);
+    expect(snap.topKeywords?.some((k) => k.position === 0)).toBe(false);
+  });
+
+  // The production failure: a result object whose only item is the blank
+  // placeholder and which carries no organic metrics. This must be reported as
+  // unavailable, not a false "zero footprint".
+  it("treats a present-but-empty result (blank item, no metrics) as unavailable", async () => {
+    const snap = await fetchDataForSeoSnapshot("alderpestcontrol.com", async () =>
+      makeResponse({
+        tasks: [
+          {
+            status_code: 20000,
+            result: [
+              {
+                items: [
+                  {
+                    keyword_data: { keyword: "" },
+                    ranked_serp_element: { serp_item: { rank_absolute: 0 } },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(snap.status).toBe("unavailable");
+    expect(snap.organicKeywordCount).toBeUndefined();
+    expect(snap.topKeywords).toBeUndefined();
+  });
+
+  it("falls back to total_count when organic.count is absent", async () => {
+    const snap = await fetchDataForSeoSnapshot("alderpestcontrol.com", async () =>
+      makeResponse({
+        tasks: [
+          {
+            status_code: 20000,
+            result: [{ total_count: 858, metrics: { organic: { etv: 2899.96 } } }],
+          },
+        ],
+      }),
+    );
+    expect(snap.status).toBe("available");
+    expect(snap.organicKeywordCount).toBe(858);
   });
 });
