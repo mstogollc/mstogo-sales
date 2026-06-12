@@ -111,3 +111,58 @@ describe("one-off manual proposals (business card / walk-in, no selected lead)",
     expect(fallback).not.toMatch(/https?:\/\//);
   });
 });
+
+describe("website address on the proposal", () => {
+  it("carries the supplied website into the prompt facts and fallback copy", () => {
+    const body: ProposalBody = {
+      businessName: "Bayside Marine Outfitters",
+      industry: "Marine Outfitter",
+      city: "Biloxi",
+      state: "MS",
+      website: "www.baysidemarine.com",
+    };
+    const { system, user } = buildProposalPrompt(body);
+    const fallback = fallbackProposal(body);
+
+    expect(user).toContain("Current website (the ONLY URL you may reference): www.baysidemarine.com");
+    expect(system).toMatch(/Never invent, alter, or substitute a different URL/i);
+    expect(fallback).toContain("Current website: www.baysidemarine.com");
+  });
+
+  it("ignores any website when 'No existing website' is set", () => {
+    // Even if a stale website value rides along, no-website mode must win so the
+    // proposal never references a site the business doesn't have.
+    const body: ProposalBody = {
+      businessName: "Walk-In Barber Co",
+      industry: "Salon / Barber / Spa",
+      city: "Gulfport",
+      state: "MS",
+      website: "www.staleurl.com",
+      noWebsite: true,
+    };
+    const { user } = buildProposalPrompt(body);
+    const fallback = fallbackProposal(body);
+
+    expect(user).not.toMatch(/staleurl/i);
+    expect(user).not.toMatch(/Current website/i);
+    expect(fallback).not.toMatch(/staleurl/i);
+    expect(fallback).toMatch(/first professional website/i);
+    expect(fallback).not.toMatch(/https?:\/\//);
+  });
+
+  it("a manual proposal with no website provided names no URL but still builds", () => {
+    const body: ProposalBody = {
+      businessName: "Joe's Pizza",
+      industry: "Restaurant / Food Service",
+      city: "Gulfport",
+      state: "MS",
+    };
+    const { user } = buildProposalPrompt(body);
+    const fallback = fallbackProposal(body);
+
+    expect(user).not.toMatch(/Current website/i);
+    expect(fallback).not.toMatch(/Current website/i);
+    expect(fallback).not.toMatch(/https?:\/\//);
+    expect(fallback).toContain("MS2GO Proposal for Joe's Pizza");
+  });
+});

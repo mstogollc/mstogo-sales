@@ -58,6 +58,11 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
     analysis?.recommendation.tier || "Growth",
   );
   const [noWebsite, setNoWebsite] = useState<boolean>(prospect?.noWebsite ?? false);
+  // Website auto-fills from the prospect's verified site (selected lead or live
+  // analysis) but stays editable — reps often have a better/newer URL than the
+  // record. When "No existing website" is on, the field is ignored entirely.
+  const prospectWebsite = prospect?.website || analysis?.placeProfile.website || analysis?.lead.website || "";
+  const [website, setWebsite] = useState(prospectWebsite);
   // City/state auto-fill from the prospect but stay editable so a manual proposal
   // (or a prospect with a missing location) can still be localized correctly.
   const [manualCity, setManualCity] = useState("");
@@ -107,6 +112,7 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
         topSignals: topSignals.length ? topSignals : undefined,
         recommendedTier: tier,
         goals: goalsWithIndustry || undefined,
+        website: noWebsite ? undefined : website.trim() || undefined,
         noWebsite: noWebsite || undefined,
       });
       setOutput(res.proposal);
@@ -270,6 +276,29 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
               onChange={(e) => setManualState(e.target.value)}
             />
           )}
+        </div>
+      </div>
+
+      <div className="row" style={{ marginTop: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label htmlFor="proposal-website">Website address (optional)</label>
+          <input
+            id="proposal-website"
+            type="url"
+            inputMode="url"
+            placeholder={noWebsite ? "Not needed — building their first website" : "e.g. www.theirbusiness.com"}
+            value={noWebsite ? "" : website}
+            disabled={noWebsite}
+            onChange={(e) => {
+              setWebsite(e.target.value);
+              updateActiveProspect({ website: e.target.value });
+            }}
+          />
+          <p className="muted" style={{ marginTop: 4, fontSize: 13 }}>
+            {noWebsite
+              ? "Website not required — “No existing website” is checked below."
+              : "If they have a website, add it here. Leave blank if you don't have it yet — it's optional."}
+          </p>
         </div>
       </div>
 

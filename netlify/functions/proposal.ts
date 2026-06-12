@@ -18,6 +18,7 @@ export interface ProposalBody {
   recommendedTier?: "Basic" | "Growth" | "Premium";
   rep?: { name?: string; email?: string };
   goals?: string;
+  website?: string;
   noWebsite?: boolean;
   leadId?: string;
   prospectId?: string;
@@ -48,6 +49,7 @@ export function fallbackProposal(body: ProposalBody): string {
   const repEmail = body.rep?.email || MS2GO_BRAND.primaryRep.defaultEmail;
   const place = locationPhrase(body.city, body.state);
   const industry = clean(body.industry);
+  const website = body.noWebsite ? undefined : clean(body.website);
   const tier =
     MS2GO_BRAND.packages.find((p) => p.tier === body.recommendedTier) ||
     recommendPackage({ overall: body.overall || "yellow", reviewCount: body.reviewCount });
@@ -66,7 +68,9 @@ export function fallbackProposal(body: ProposalBody): string {
         signalsList,
         "  • You don't have a website yet — every search for your business sends a potential customer to a competitor who does.",
       ].join("\n")
-    : signalsList;
+    : website
+      ? [signalsList, `  • Current website: ${website}`].join("\n")
+      : signalsList;
 
   const whatWeDo = body.noWebsite
     ? [
@@ -119,6 +123,7 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
   const city = clean(body.city);
   const state = clean(body.state);
   const industry = clean(body.industry);
+  const website = body.noWebsite ? undefined : clean(body.website);
 
   const system =
     "You are an MS2GO sales strategist writing a one-page proposal. Structure it as: title, " +
@@ -135,7 +140,11 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
       ? "This prospect does NOT currently have a website. Never imply they already have one, never reference " +
         "their current site, and do not include any placeholder website URL. Frame the opportunity as MS2GO " +
         "building their first professional website, and treat the missing site as the core gap to close. "
-      : "") +
+      : website
+        ? "The business's current website is provided in the verified facts. You may reference that exact URL " +
+          "when discussing their current online presence. Never invent, alter, or substitute a different URL, " +
+          "and never use a placeholder website. "
+        : "If no website is listed in the verified facts, do not invent one or reference any specific URL. ") +
     "Keep it under 350 words.";
 
   const locationFact =
@@ -153,6 +162,7 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
     locationFact,
     locationMissing,
     body.noWebsite ? "Website status: prospect has no website yet — MS2GO will build their first one." : null,
+    !body.noWebsite && website ? `Current website (the ONLY URL you may reference): ${website}` : null,
     `Recommended package: ${recommended.tier} — $${recommended.price}/${recommended.cadence}`,
     `Package summary: ${recommended.summary}`,
     body.goals ? `Stated goals: ${body.goals}` : null,
@@ -221,6 +231,7 @@ export default async (req: Request, _ctx: Context) => {
             city: clean(body.city) ?? null,
             state: clean(body.state) ?? null,
             industry: clean(body.industry) ?? null,
+            website: body.noWebsite ? null : clean(body.website) ?? null,
             goals: body.goals,
             tier: recommended.tier,
             no_website: body.noWebsite ?? false,
