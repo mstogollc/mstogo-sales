@@ -91,11 +91,25 @@ function buildResolution(
   };
 }
 
+function hasFootprint(seo: DataForSeoSnapshot): boolean {
+  return (
+    seo.status === "available" &&
+    ((seo.organicKeywordCount ?? 0) > 0 || (seo.organicTrafficEstimate ?? 0) > 0)
+  );
+}
+
 // Resolves the SEO snapshot, preferring the rep-typed domain but falling back
 // to the Google-verified profile website when the typed domain returns no
 // usable footprint. This is what stops a typo ("adlerpestcontrol.com") from
 // reporting false "zero visibility" when the real site
 // ("alderpestcontrol.com") ranks well.
+//
+// The decisive case (seen live): DataForSEO returns a *successful, empty*
+// result for the typo — status "available" with a zero footprint. That is not
+// a reason to report zero when Google has verified a different, real website
+// for the same business. Whenever the typed domain has no footprint and a
+// matched Places profile gives us a *different* verified domain, we re-run the
+// lookup against that verified domain and report it as the source of truth.
 export async function resolveSeoSnapshot(
   enteredWebsite: string | undefined,
   place: PlaceProfile,
@@ -107,23 +121,28 @@ export async function resolveSeoSnapshot(
 
   const primary = await fetchDataForSeoSnapshot(enteredWebsite, fetchImpl);
 
-  // Has the typed domain given us a real, non-empty footprint?
-  const primaryHasFootprint =
-    primary.status === "available" && (primary.organicKeywordCount ?? 0) > 0;
+  // A different, Google-verified website exists for this business.
+  const haveDifferentVerified =
+    place.matched && Boolean(verifiedDomain) && verifiedDomain !== enteredDomain;
 
+  // Retry on the verified domain whenever the typed domain has no real
+  // footprint — this explicitly covers the "available but zero" typo case.
+  // We never bother retrying when DataForSEO simply isn't configured.
   const shouldTryVerified =
-    !primaryHasFootprint &&
-    Boolean(verifiedDomain) &&
-    verifiedDomain !== enteredDomain &&
-    primary.status !== "not_configured";
+    haveDifferentVerified && !hasFootprint(primary) && primary.status !== "not_configured";
 
   if (shouldTryVerified) {
     const verified = await fetchDataForSeoSnapshot(verifiedWebsite, fetchImpl);
-    const verifiedHasFootprint =
-      verified.status === "available" && (verified.organicKeywordCount ?? 0) > 0;
-    // Only switch to the verified site if it actually beats the typed one —
-    // otherwise keep the primary result so we don't mask a real situation.
-    if (verifiedHasFootprint || (verified.status === "available" && primary.status !== "available")) {
+
+    // We only get here because the typed domain had no footprint. The verified
+    // domain is the business's real, Google-confirmed website, so it is the
+    // source of truth: report it whether it has a footprint, is an honest
+    // "available zero", or is transiently "unavailable". An unavailable verdict
+    // for the correct site still beats a false zero for the typed typo — both
+    // never get coerced into "0 organic visits". The one exception is when the
+    // verified lookup can't run at all (creds missing); then we keep whatever
+    // the typed lookup told us.
+    if (verified.status !== "not_configured") {
       return {
         seo: verified,
         resolution: buildResolution(enteredWebsite, verifiedWebsite, verified.domain, true),
