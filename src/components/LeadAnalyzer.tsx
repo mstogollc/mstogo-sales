@@ -176,6 +176,18 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
         {error && <p className="error">{error}</p>}
       </section>
 
+      {result?.websiteResolution?.notice && (
+        <div className="notice" role="status" style={{ marginBottom: 12 }}>
+          <strong>Heads up:</strong> {result.websiteResolution.notice}
+          {result.websiteResolution.enteredWebsite && result.websiteResolution.verifiedWebsite && (
+            <div className="muted" style={{ marginTop: 6 }}>
+              Typed: {result.websiteResolution.enteredWebsite} · Used for SEO:{" "}
+              {result.websiteResolution.verifiedWebsite}
+            </div>
+          )}
+        </div>
+      )}
+
       {result && (
         <>
           <section className="card">
@@ -280,6 +292,34 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
               </dl>
             )}
             <p className="muted" style={{ marginTop: 12 }}>{result.placeProfile.summary}</p>
+          </section>
+
+          <section className="card">
+            <h2>Search visibility</h2>
+            {result.seoSnapshot.status === "available" ? (
+              <p className="subtitle">
+                {result.seoSnapshot.organicKeywordCount !== undefined
+                  ? `Ranking for ${result.seoSnapshot.organicKeywordCount.toLocaleString()} keywords · ~${Math.round(
+                      result.seoSnapshot.organicTrafficEstimate ?? 0,
+                    ).toLocaleString()} estimated monthly organic visits.`
+                  : "Live search data retrieved."}
+                {result.seoSnapshot.domain ? ` (${result.seoSnapshot.domain})` : ""}
+              </p>
+            ) : result.seoSnapshot.status === "unavailable" ? (
+              <p className="subtitle">
+                Search-visibility data isn't available for this website right now — we'll confirm it
+                live before the proposal. (This is not a reading of zero traffic.)
+              </p>
+            ) : (
+              <p className="subtitle">
+                Search-visibility check is offline in this environment.
+              </p>
+            )}
+            {result.seoSnapshot.backlinks?.status === "unavailable" && (
+              <p className="muted" style={{ marginTop: 8 }}>
+                Backlink data unavailable for this site.
+              </p>
+            )}
           </section>
 
           <section className="card">

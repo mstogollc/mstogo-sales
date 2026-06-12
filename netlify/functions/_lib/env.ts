@@ -5,6 +5,18 @@ export function getEnv(name: string): string | undefined {
   return trimmed.length === 0 ? undefined : trimmed;
 }
 
+// Returns the first set value among several env var names. Lets server-side
+// code accept either the canonical name or a known alias (e.g. a VITE_*
+// variable that an operator set on the wrong side of the build) without ever
+// exposing which name was used.
+export function getEnvAny(...names: string[]): string | undefined {
+  for (const name of names) {
+    const v = getEnv(name);
+    if (v) return v;
+  }
+  return undefined;
+}
+
 export function requireEnv(name: string): string {
   const v = getEnv(name);
   if (!v) {

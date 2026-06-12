@@ -1,4 +1,5 @@
-import { getEnv } from "./env";
+import { getEnvAny } from "./env";
+import { normalizeDomain } from "./dataforseo";
 
 export type PlaceIndicatorLevel = "green" | "yellow" | "red";
 
@@ -21,6 +22,8 @@ export interface PlaceProfile {
   categories?: string[];
   primaryCategory?: string;
   googleMapsUri?: string;
+  /** Normalized registrable host from the verified profile website, if any. */
+  websiteDomain?: string;
   signals: PlaceSignal[];
   overall: PlaceIndicatorLevel;
   summary: string;
@@ -244,7 +247,7 @@ export async function fetchPlaceProfile(
   input: PlacesLookupInput,
   fetchImpl: typeof fetch = fetch,
 ): Promise<PlaceProfile> {
-  const apiKey = getEnv("GOOGLE_PLACES_API_KEY");
+  const apiKey = getEnvAny("GOOGLE_PLACES_API_KEY", "VITE_GOOGLE_PLACES_API_KEY");
   if (!apiKey) {
     return {
       matched: false,
@@ -322,6 +325,7 @@ export async function fetchPlaceProfile(
       categories: d.types,
       primaryCategory: d.primaryTypeDisplayName?.text || d.primaryType,
       googleMapsUri: d.googleMapsUri,
+      websiteDomain: normalizeDomain(d.websiteUri),
       signals,
       overall,
       summary,
