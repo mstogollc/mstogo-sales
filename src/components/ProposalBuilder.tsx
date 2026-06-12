@@ -35,7 +35,14 @@ const CUSTOM_INDUSTRY = "__custom__";
 
 export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   const prospect = useActiveProspect();
-  const businessName = analysis?.lead.businessName || prospect?.businessName || "";
+  // A prospect is "selected" when a lead has been chosen or analyzed. In that
+  // case the business name auto-fills and is locked to the verified record. With
+  // no prospect, the rep is building a one-off proposal (business card, walk-in,
+  // cold knock) and types the name in directly.
+  const hasProspect = Boolean(analysis?.lead.businessName || prospect?.businessName);
+  const prospectBusinessName = analysis?.lead.businessName || prospect?.businessName || "";
+  const [manualBusinessName, setManualBusinessName] = useState("");
+  const businessName = hasProspect ? prospectBusinessName : manualBusinessName.trim();
   const [goals, setGoals] = useState("");
   const [contactName, setContactName] = useState(prospect?.contactName ?? "");
   const [contactRole, setContactRole] = useState(prospect?.contactRole ?? "");
@@ -51,6 +58,10 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
     analysis?.recommendation.tier || "Growth",
   );
   const [noWebsite, setNoWebsite] = useState<boolean>(prospect?.noWebsite ?? false);
+  // City/state auto-fill from the prospect but stay editable so a manual proposal
+  // (or a prospect with a missing location) can still be localized correctly.
+  const [manualCity, setManualCity] = useState("");
+  const [manualState, setManualState] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +70,15 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
 
   const industry = industryChoice === CUSTOM_INDUSTRY ? customIndustry.trim() : industryChoice;
-  const proposalCity = prospect?.city || analysis?.lead.city || "";
-  const proposalState = prospect?.state || analysis?.lead.state || "";
+  const prospectCity = prospect?.city || analysis?.lead.city || "";
+  const prospectState = prospect?.state || analysis?.lead.state || "";
+  const proposalCity = (hasProspect ? prospectCity || manualCity.trim() : manualCity.trim()).trim();
+  const proposalState = (hasProspect ? prospectState || manualState.trim() : manualState.trim()).trim();
 
   async function handleBuild() {
     setError(null);
     if (!businessName) {
-      setError("Select a lead or run an analysis first so we have something to anchor the proposal on.");
+      setError("Enter the business name to build the proposal.");
       return;
     }
     setLoading(true);
@@ -143,24 +156,44 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   return (
     <section className="card">
       <h2>Proposal builder</h2>
-      <p className="subtitle">A one-page proposal sales reps can send within five minutes of a discovery call.</p>
+      <p className="subtitle">
+        A one-page proposal sales reps can send within five minutes — from a selected lead or typed in fresh from a
+        business card, walk-in, or cold knock.
+      </p>
 
-      {businessName ? (
-        <div className="notice" style={{ marginBottom: 12 }}>
-          Proposal for <strong>{businessName}</strong>
+      <div className="row">
+        <div>
+          <label htmlFor="proposal-business">Business name</label>
+          {hasProspect ? (
+            <input id="proposal-business" value={prospectBusinessName} readOnly />
+          ) : (
+            <input
+              id="proposal-business"
+              placeholder="e.g. Joe's Pizza"
+              value={manualBusinessName}
+              onChange={(e) => setManualBusinessName(e.target.value)}
+            />
+          )}
+        </div>
+      </div>
+
+      {hasProspect ? (
+        <div className="notice" style={{ marginTop: 12, marginBottom: 12 }}>
+          Working selected lead: <strong>{prospectBusinessName}</strong>
           {industry ? ` · ${industry}` : ""}
           {proposalCity ? ` · ${proposalCity}${proposalState ? `, ${proposalState}` : ""}` : ""}
         </div>
       ) : (
-        <div className="notice" style={{ marginBottom: 12 }}>
-          Select a lead or run a lead analysis first — proposals are stronger when grounded in real signals.
+        <div className="notice" style={{ marginTop: 12, marginBottom: 12 }}>
+          No lead selected — building a one-off proposal. Fill in the business name above and the details below. Pick a
+          lead in Lead Lists or run Lead Intel first if you want it grounded in live signals.
         </div>
       )}
 
       {businessName && !proposalCity && (
         <div className="notice warn" style={{ marginBottom: 12 }}>
-          No city set for this prospect — the proposal will use neutral wording like "your local market" instead of
-          naming a town, so it never references the wrong city. Add the city/state in Lead Intel to localize it.
+          No city set — the proposal will use neutral wording like "your local market" instead of naming a town, so it
+          never references the wrong city. Add the city/state below to localize it.
         </div>
       )}
 
@@ -211,6 +244,35 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
         )}
       </div>
 
+      <div className="row" style={{ marginTop: 12 }}>
+        <div>
+          <label htmlFor="proposal-city">City</label>
+          {hasProspect && prospectCity ? (
+            <input id="proposal-city" value={prospectCity} readOnly />
+          ) : (
+            <input
+              id="proposal-city"
+              placeholder="e.g. Gulfport"
+              value={manualCity}
+              onChange={(e) => setManualCity(e.target.value)}
+            />
+          )}
+        </div>
+        <div>
+          <label htmlFor="proposal-state">State</label>
+          {hasProspect && prospectState ? (
+            <input id="proposal-state" value={prospectState} readOnly />
+          ) : (
+            <input
+              id="proposal-state"
+              placeholder="e.g. MS"
+              value={manualState}
+              onChange={(e) => setManualState(e.target.value)}
+            />
+          )}
+        </div>
+      </div>
+
       <div style={{ marginTop: 12 }}>
         <label className="checkbox-row" htmlFor="no-website">
           <input
@@ -223,7 +285,7 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
             }}
           />
           <span>
-            <strong>No existing website</strong> — this prospect doesn't have a website yet. MS2GO will build their
+            <strong>No existing website</strong> — this business doesn't have a website yet. MS2GO will build their
             first professional site, and the proposal will skip any current-website analysis.
           </span>
         </label>

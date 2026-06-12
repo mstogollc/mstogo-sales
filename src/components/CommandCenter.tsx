@@ -19,12 +19,12 @@ export const CommandCenter: FC<Props> = ({ onNavigate, userEmail, isSuperAdmin }
             : "Pick a module from the left, or jump straight into a common workflow below."}
         </p>
         <div className="tier-grid" style={{ marginTop: 12 }}>
-          <Quick label="Generate a lead list" desc="DataForSEO live search by city / industry / radius." onClick={() => onNavigate("leads")} />
-          <Quick label="Run Lead Intel" desc="Pre-meeting brief from Google Places + DataForSEO + OpenAI." onClick={() => onNavigate("intel")} />
-          <Quick label="Build a proposal" desc="Branded MS2GO proposal copy from the latest analysis." onClick={() => onNavigate("proposal")} />
-          <Quick label="Draft outreach" desc="Email drafts, rewrites, and Resend send." onClick={() => onNavigate("outreach")} />
-          <Quick label="Open the pipeline" desc="Supabase-backed CRM: leads, prospects, proposals, sales." onClick={() => onNavigate("pipeline")} />
-          <Quick label="Set up payouts" desc="Plaid Link for rep direct-deposit." onClick={() => onNavigate("payouts")} />
+          <Quick label="Generate a lead list" desc="Find local prospects by city, industry, and radius." onClick={() => onNavigate("leads")} />
+          <Quick label="Run Lead Intel" desc="Pull a pre-meeting brief on any business in seconds." onClick={() => onNavigate("intel")} />
+          <Quick label="Build a proposal" desc="A branded MS2GO proposal you can send in minutes." onClick={() => onNavigate("proposal")} />
+          <Quick label="Draft outreach" desc="Write, polish, and send prospect emails." onClick={() => onNavigate("outreach")} />
+          <Quick label="Open the pipeline" desc="Track every lead, proposal, and sale in one place." onClick={() => onNavigate("pipeline")} />
+          <Quick label="Set up payouts" desc="Connect your bank for commission direct deposit." onClick={() => onNavigate("payouts")} />
         </div>
       </section>
 

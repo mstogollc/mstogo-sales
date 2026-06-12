@@ -73,3 +73,41 @@ describe("proposal geography is locked to the selected prospect", () => {
     expect(text).toMatch(/first professional website/i);
   });
 });
+
+describe("one-off manual proposals (business card / walk-in, no selected lead)", () => {
+  it("anchors the proposal on the typed business name with no prospect signals", () => {
+    // The manual path supplies only what the rep typed: a business name, an
+    // optional custom industry, and a location. There are no topSignals because
+    // no lead was analyzed — the proposal must still build cleanly.
+    const body: ProposalBody = {
+      businessName: "Bayside Marine Outfitters",
+      industry: "Marine Outfitter",
+      city: "Biloxi",
+      state: "MS",
+      recommendedTier: "Growth",
+    };
+    const { user } = buildProposalPrompt(body);
+    const fallback = fallbackProposal(body);
+
+    expect(user).toContain("Business: Bayside Marine Outfitters");
+    expect(user).toContain("Industry / category: Marine Outfitter");
+    expect(user).toContain("Biloxi, MS");
+    expect(fallback).toContain("MS2GO Proposal for Bayside Marine Outfitters");
+    expect(fallback).toContain("Biloxi, MS");
+    // No invented signals, no placeholder business name.
+    expect(fallback).not.toMatch(/your business|Anytown|\[Business\]/i);
+  });
+
+  it("manual entry without a website is treated as a no-website build", () => {
+    const body: ProposalBody = {
+      businessName: "Walk-In Barber Co",
+      industry: "Salon / Barber / Spa",
+      city: "Gulfport",
+      state: "MS",
+      noWebsite: true,
+    };
+    const fallback = fallbackProposal(body);
+    expect(fallback).toMatch(/first professional website/i);
+    expect(fallback).not.toMatch(/https?:\/\//);
+  });
+});
