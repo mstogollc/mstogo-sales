@@ -152,10 +152,10 @@ export const SalesOpsLayout: FC<Props> = ({
         </nav>
 
         <div className="ops-sidebar-footer">
-          <div className="ops-sidebar-footer-title">Integration status</div>
+          <div className="ops-sidebar-footer-title">Need a hand?</div>
           <p className="ops-sidebar-footer-body">
-            DataForSEO, Google Places, Resend, OpenAI, Plaid, DocuSign, Dropbox Sign and Gusto activate when their env
-            vars are configured on Netlify.
+            Every tool here works the moment it's connected. If a module asks you to finish setup, reach out to your
+            MS2GO admin and they'll switch it on.
           </p>
         </div>
       </aside>
@@ -185,7 +185,7 @@ export const SalesOpsLayout: FC<Props> = ({
 
         <footer className="ops-footer">
           <span>MS2GO Sales Operations Center · portal.mstogo.com</span>
-          <span>Auth · Supabase · Live integrations</span>
+          <span>Secure rep portal</span>
         </footer>
       </div>
     </div>
