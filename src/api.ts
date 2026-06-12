@@ -19,6 +19,7 @@ export interface PlaceProfile {
   categories?: string[];
   primaryCategory?: string;
   googleMapsUri?: string;
+  websiteDomain?: string;
   signals: PlaceSignal[];
   overall: "green" | "yellow" | "red";
   summary: string;
@@ -26,12 +27,29 @@ export interface PlaceProfile {
 
 export interface DataForSeoSnapshot {
   configured: boolean;
+  status: "available" | "unavailable" | "not_configured";
   domain?: string;
   organicKeywordCount?: number;
   organicTrafficEstimate?: number;
   paidKeywordCount?: number;
   topKeywords?: Array<{ keyword: string; position: number; searchVolume?: number }>;
+  backlinks?: {
+    status: "available" | "unavailable" | "not_requested";
+    count?: number;
+    referringDomains?: number;
+  };
   rankSignals?: PlaceSignal[];
+}
+
+export interface WebsiteResolution {
+  enteredWebsite?: string;
+  enteredDomain?: string;
+  verifiedWebsite?: string;
+  verifiedDomain?: string;
+  usedDomain?: string;
+  usedVerified: boolean;
+  mismatch: boolean;
+  notice?: string;
 }
 
 export interface Recommendation {
@@ -51,6 +69,7 @@ export interface AnalyzeResponse {
   };
   placeProfile: PlaceProfile;
   seoSnapshot: DataForSeoSnapshot;
+  websiteResolution?: WebsiteResolution;
   recommendation: Recommendation;
   packages: ReadonlyArray<{ tier: string; price: number; cadence: string; summary: string }>;
   narrative: string;
