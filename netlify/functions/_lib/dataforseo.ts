@@ -50,12 +50,24 @@ interface DfsResponse<T> {
   }>;
 }
 
-interface DomainOverviewResult {
+// Shape returned by dataforseo_labs/google/ranked_keywords/live. This endpoint
+// returns BOTH the aggregate organic metrics (count/etv/position buckets) AND
+// the per-keyword `items` list — unlike domain_rank_overview, which has no
+// items array (the source of the blank `{keyword:"", position:0}` rows seen in
+// production).
+interface RankedKeywordsResult {
   target?: string;
+  /** Total keywords in DataForSEO's database for this target. */
+  total_count?: number;
+  /** Items actually returned (bounded by `limit`). */
+  items_count?: number;
   metrics?: {
     organic?: {
       count?: number;
       etv?: number;
+      pos_1?: number;
+      pos_2_3?: number;
+      pos_4_10?: number;
     };
     paid?: {
       count?: number;
@@ -71,6 +83,7 @@ interface DomainOverviewResult {
     ranked_serp_element?: {
       serp_item?: {
         rank_absolute?: number;
+        rank_group?: number;
       };
     };
   }>;
@@ -99,11 +112,26 @@ function authHeader(login: string, password: string): string {
 }
 
 function rankSignalsFor(snapshot: DataForSeoSnapshot): DataForSeoSnapshot["rankSignals"] {
-  // Only called when status === "available", so undefined here means the API
-  // genuinely returned no value for that metric — treat as a real zero.
+  // Only called when status === "available". A metric that is present (even 0)
+  // is a real reading; a metric that is `undefined` was not returned, so we
+  // describe what we *do* know instead of inventing a zero.
   const out: DataForSeoSnapshot["rankSignals"] = [];
-  const keywords = snapshot.organicKeywordCount ?? 0;
-  if (keywords === 0) {
+
+  // If the API didn't return an organic count but we parsed real keyword rows,
+  // fall back to the number of rows so the signal never contradicts the list.
+  const keywords =
+    snapshot.organicKeywordCount ??
+    (snapshot.topKeywords && snapshot.topKeywords.length > 0
+      ? snapshot.topKeywords.length
+      : undefined);
+
+  if (keywords === undefined) {
+    out.push({
+      label: "Organic keyword footprint",
+      level: "yellow",
+      detail: "Organic keyword footprint couldn't be measured for this domain right now.",
+    });
+  } else if (keywords === 0) {
     out.push({
       label: "Organic keyword footprint",
       level: "red",
@@ -113,7 +141,7 @@ function rankSignalsFor(snapshot: DataForSeoSnapshot): DataForSeoSnapshot["rankS
     out.push({
       label: "Organic keyword footprint",
       level: "yellow",
-      detail: `Domain ranks for roughly ${keywords} keywords — limited topical authority.`,
+      detail: `Domain ranks for roughly ${keywords.toLocaleString()} keywords — limited topical authority.`,
     });
   } else {
     out.push({
@@ -123,8 +151,15 @@ function rankSignalsFor(snapshot: DataForSeoSnapshot): DataForSeoSnapshot["rankS
     });
   }
 
-  const traffic = snapshot.organicTrafficEstimate ?? 0;
-  if (traffic < 100) {
+  const traffic = snapshot.organicTrafficEstimate;
+  if (traffic === undefined) {
+    // No traffic estimate returned — don't claim "0 visits".
+    out.push({
+      label: "Estimated organic traffic",
+      level: "yellow",
+      detail: "Estimated organic traffic isn't available for this domain right now.",
+    });
+  } else if (traffic < 100) {
     out.push({
       label: "Estimated organic traffic",
       level: traffic === 0 ? "red" : "yellow",
@@ -202,7 +237,7 @@ export async function fetchDataForSeoSnapshot(
 
   try {
     const res = await fetchImpl(
-      "https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live",
+      "https://api.dataforseo.com/v3/dataforseo_labs/google/ranked_keywords/live",
       {
         method: "POST",
         headers: {
@@ -214,7 +249,8 @@ export async function fetchDataForSeoSnapshot(
             target: domain,
             language_code: "en",
             location_code: 2840,
-            limit: 10,
+            limit: 25,
+            order_by: ["ranked_serp_element.serp_item.rank_group,asc"],
           },
         ]),
       },
@@ -224,7 +260,7 @@ export async function fetchDataForSeoSnapshot(
       return unavailableSnapshot(domain, `dataforseo_${res.status}`, "DataForSEO");
     }
 
-    const body = (await res.json()) as DfsResponse<DomainOverviewResult>;
+    const body = (await res.json()) as DfsResponse<RankedKeywordsResult>;
     // A task-level error (e.g. auth/subscription) is not an HTTP failure but
     // still means the metrics are not trustworthy — do not coerce to zero.
     const task = body.tasks?.[0];
@@ -246,16 +282,42 @@ export async function fetchDataForSeoSnapshot(
       return unavailableSnapshot(domain, "dataforseo_empty_result", "DataForSEO");
     }
 
-    const organicCount = result.metrics?.organic?.count;
-    const organicEtv = result.metrics?.organic?.etv;
+    const organic = result.metrics?.organic;
+    // Prefer the organic-specific count; fall back to the database total_count.
+    const organicCount =
+      typeof organic?.count === "number"
+        ? organic.count
+        : typeof result.total_count === "number"
+          ? result.total_count
+          : undefined;
+    const organicEtv = typeof organic?.etv === "number" ? organic.etv : undefined;
     const paidCount = result.metrics?.paid?.count;
 
-    const topKeywords =
-      result.items?.slice(0, 5).map((it) => ({
-        keyword: it.keyword_data?.keyword || "",
-        position: it.ranked_serp_element?.serp_item?.rank_absolute || 0,
+    // Keep only real keyword rows. The wrong endpoint / a partial response can
+    // return placeholder items with an empty keyword and rank 0 — those must
+    // never surface as data.
+    const topKeywords = (result.items ?? [])
+      .map((it) => ({
+        keyword: (it.keyword_data?.keyword ?? "").trim(),
+        position:
+          it.ranked_serp_element?.serp_item?.rank_absolute ??
+          it.ranked_serp_element?.serp_item?.rank_group ??
+          0,
         searchVolume: it.keyword_data?.keyword_info?.search_volume,
-      })) ?? [];
+      }))
+      .filter((kw) => kw.keyword.length > 0 && kw.position > 0)
+      .slice(0, 5);
+
+    // A result object with no usable signal at all (no organic metrics, no
+    // total_count, and no real keyword rows) is the production "empty item"
+    // case. Report it as unavailable rather than a false zero footprint.
+    const hasMetric =
+      typeof organic?.count === "number" ||
+      typeof organic?.etv === "number" ||
+      typeof result.total_count === "number";
+    if (!hasMetric && topKeywords.length === 0) {
+      return unavailableSnapshot(domain, "dataforseo_no_metrics", "DataForSEO");
+    }
 
     const snapshot: DataForSeoSnapshot = {
       configured: true,
