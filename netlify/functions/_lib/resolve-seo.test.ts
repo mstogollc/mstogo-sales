@@ -73,6 +73,7 @@ describe("resolveSeoSnapshot (Adler/Alder regression)", () => {
 
     // Final report uses the verified domain and shows the real footprint.
     expect(seo.domain).toBe("alderpestcontrol.com");
+    expect(seo.domain).not.toBe("adlerpestcontrol.com");
     expect(seo.status).toBe("available");
     expect(seo.organicKeywordCount).toBe(858);
     expect(seo.organicKeywordCount).not.toBe(0);
@@ -109,5 +110,62 @@ describe("resolveSeoSnapshot (Adler/Alder regression)", () => {
     expect(seo.status).toBe("unavailable");
     expect(seo.organicKeywordCount).toBeUndefined();
     expect(resolution.mismatch).toBe(true);
+  });
+
+  // Live failure mode: the typed domain returns a *successful empty* result
+  // (status available, zero footprint), while the verified-domain retry is
+  // temporarily unavailable. We must still pivot to the verified domain rather
+  // than reporting the typo's false zero.
+  it("uses the verified domain even when its retry is unavailable, never the typo's false zero", async () => {
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      const target = (JSON.parse(String(init?.body)) as Array<{ target: string }>)[0]?.target;
+      if (target === "adlerpestcontrol.com") return makeResponse(overview(0, 0));
+      return makeResponse({ error: "rate_limited" }, 429);
+    }) as unknown as typeof fetch;
+
+    const { seo, resolution } = await resolveSeoSnapshot(
+      "adlerpestcontrol.com",
+      alderPlace,
+      fetchImpl,
+    );
+
+    expect(seo.domain).toBe("alderpestcontrol.com");
+    expect(seo.domain).not.toBe("adlerpestcontrol.com");
+    expect(seo.status).toBe("unavailable");
+    // Crucially: not presented as a real zero footprint.
+    expect(seo.organicKeywordCount).toBeUndefined();
+    expect(resolution.usedVerified).toBe(true);
+    expect(resolution.notice).toMatch(/verified Google listing/i);
+  });
+
+  // The verified domain is the source of truth even when it, too, is an
+  // honest zero — we still report the verified domain, not the typo.
+  it("uses the verified domain when both come back as available zero", async () => {
+    const fetchImpl = dfsFetchByDomain({
+      "adlerpestcontrol.com": overview(0, 0),
+      "alderpestcontrol.com": overview(0, 0),
+    });
+    const { seo, resolution } = await resolveSeoSnapshot(
+      "adlerpestcontrol.com",
+      alderPlace,
+      fetchImpl,
+    );
+    expect(seo.domain).toBe("alderpestcontrol.com");
+    expect(seo.status).toBe("available");
+    expect(resolution.usedVerified).toBe(true);
+  });
+
+  // No Places match (or no verified domain) means there is nothing to pivot to,
+  // so the typed domain's honest result stands.
+  it("keeps the typed domain when Places has no verified website", async () => {
+    const fetchImpl = dfsFetchByDomain({ "adlerpestcontrol.com": overview(0, 0) });
+    const noWebsitePlace: PlaceProfile = { ...alderPlace, website: undefined, websiteDomain: undefined };
+    const { seo, resolution } = await resolveSeoSnapshot(
+      "adlerpestcontrol.com",
+      noWebsitePlace,
+      fetchImpl,
+    );
+    expect(seo.domain).toBe("adlerpestcontrol.com");
+    expect(resolution.usedVerified).toBe(false);
   });
 });
