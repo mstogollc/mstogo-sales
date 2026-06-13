@@ -160,6 +160,7 @@ export const api = {
     topSignals?: PlaceSignal[];
     recommendedTier?: "Basic" | "Growth" | "Premium";
     goals?: string;
+    website?: string;
     noWebsite?: boolean;
     rep?: { name?: string; email?: string };
   }) =>
