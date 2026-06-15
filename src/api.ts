@@ -162,10 +162,12 @@ export const api = {
     goals?: string;
     website?: string;
     noWebsite?: boolean;
+    format?: "full" | "intro";
     rep?: { name?: string; email?: string };
   }) =>
     postJson<{
       proposal: string;
+      format: "full" | "intro";
       source: "openai" | "fallback";
       recommendation: Recommendation;
     }>("/api/proposal", body),
