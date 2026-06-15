@@ -123,18 +123,55 @@ export function introLetterFallback(body: ProposalBody): string {
 }
 
 /**
- * Renders the three MS2GO packages as an "Investment" section, with the
- * recommended tier called out. Directories are included in every tier, so the
- * full proposal never positions them as an add-on.
+ * What each tier adds on top of the one below it, in plain owner-facing terms.
+ * This is the detailed cost/investment explanation Justin expects on the
+ * investment page — not just a price, but exactly what the money buys at each
+ * level. Pricing is locked to the real MS2GO rate card (Basic $300, Growth $750,
+ * Premium $2,000) via MS2GO_BRAND.packages.
+ */
+const TIER_DETAIL: Record<MS2GOPackage["tier"], readonly string[]> = {
+  Basic: [
+    "Google Business Profile fully optimized and actively managed.",
+    "Business directories & listings claimed and standardized everywhere — included in every package.",
+    "Reviews & reputation monitoring so new 5-star reviews keep coming in.",
+    "Monthly reporting on calls, direction requests, and local visibility.",
+  ],
+  Growth: [
+    "Everything in Basic, plus active demand generation.",
+    "Industry SEO & website content tuned to the high-intent terms your buyers actually search.",
+    "Paid Ads & Google Local Services Ads managed on your budget — pay for real calls, not clicks.",
+    "Reviews & reputation engine plus follow-up / speed-to-lead so no inquiry goes cold.",
+  ],
+  Premium: [
+    "Everything in Growth, plus full sales acceleration.",
+    "Multi-channel campaigns and creative production handled end to end.",
+    "AI Search Optimization so your business gets named inside AI answers and Google AI Overviews.",
+    "A dedicated strategist and priority support driving the whole growth system.",
+  ],
+};
+
+/**
+ * Renders the three MS2GO packages as a detailed "Investment" section, with the
+ * recommended tier called out and a plain-English breakdown of what each tier
+ * buys. Directories are included in every tier, so the full proposal never
+ * positions them as an add-on.
  */
 function investmentSection(recommendedTier: MS2GOPackage["tier"]): string {
-  const lines = ["Investment — choose the package that fits your goals"];
+  const lines = [
+    "Investment — choose the package that fits your goals",
+    "  Every package is month-to-month and includes business directories & listings management at no extra cost.",
+    "",
+  ];
   for (const pkg of MS2GO_BRAND.packages) {
     const star = pkg.tier === recommendedTier ? "  ★ Recommended for you" : "";
     lines.push(`  • ${pkg.tier} — $${pkg.price.toLocaleString("en-US")}/${pkg.cadence}${star}`);
     lines.push(`      ${pkg.summary}`);
+    for (const detail of TIER_DETAIL[pkg.tier]) {
+      lines.push(`        – ${detail}`);
+    }
+    lines.push("");
   }
-  lines.push("  • Every package includes business directories & listings management at no extra cost.");
+  lines.push("  No setup fees and no long-term contract — you can move up or down a tier as results compound.");
   return lines.join("\n");
 }
 
@@ -184,16 +221,28 @@ export function fullProposalFallback(body: ProposalBody): string {
   const websiteSection = body.noWebsite
     ? [
         "Your website — built from scratch",
-        "  • You don't have a website yet, so we start by building your first professional website — fast-loading, mobile-first, and built to turn visitors into calls and booked jobs.",
+        "  You don't have a website yet, and that's the single biggest gap costing you customers: today every search for your business hands a ready-to-buy customer to a competitor who does have one. We build your first professional website so that stops. Here's what we build for you:",
+        "  • A professional, mobile-first website designed to load fast and look right on every phone — where most of your local searches actually happen.",
+        "  • Built to convert, not just to look pretty: clear calls-to-action, click-to-call, a quote/booking form, and trust signals (reviews, service area, guarantees) so visitors turn into calls and booked jobs.",
+        "  • Service and location pages structured for local SEO from day one, so the site earns rankings instead of just sitting there.",
+        "  • Lead capture wired into your follow-up so every inquiry is answered fast — and we keep refining the site as the data comes in.",
       ].join("\n")
     : website
       ? [
           "Your website — what we improve",
-          `  • We build on your current site (${website}) with conversion best practices: speed, mobile layout, trust signals, and lead capture, then refine it over time.`,
+          `  Your current site is ${website}. We don't throw it away — we turn it into a lead engine. Here's what we do:`,
+          "  • Speed & mobile: tune load time and the mobile layout so visitors don't bounce before the page loads.",
+          "  • Conversion: add and sharpen calls-to-action, click-to-call, and quote/booking forms so more visitors actually contact you.",
+          "  • Trust signals: surface your reviews, service area, credentials, and guarantees so first-time visitors believe you.",
+          "  • On-page SEO: tighten your service and location pages around the terms your buyers search, then keep refining it over time as we see what converts.",
         ].join("\n")
       : [
           "Your website — what we improve",
-          "  • We strengthen your site with conversion best practices — speed, mobile layout, trust signals, and lead capture — then refine it over time.",
+          "  We make your website do real work instead of just existing. Here's what we focus on:",
+          "  • Speed & mobile: faster load times and a clean mobile layout, since most local searches happen on a phone.",
+          "  • Conversion: clear calls-to-action, click-to-call, and quote/booking forms so visitors become calls and booked jobs.",
+          "  • Trust signals: reviews, service area, and guarantees front and center to win first-time visitors.",
+          "  • On-page SEO: service and location pages tuned to the high-intent terms your buyers search — then refined over time.",
         ].join("\n");
 
   return [
@@ -253,9 +302,16 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
       "title, a short intro paragraph, 'Where you stand today', 'The MS2GO growth system' (cover Local SEO & the " +
       "Google Map Pack, Industry SEO & website content, Business Directories & Listings — included in every package, " +
       "Paid Ads & Google Local Services Ads, AI Search Optimization, Reviews & Reputation, and Follow-Up & Speed-to-Lead), " +
-      "a 'Your website' section, 'Investment' that lists all three packages (Basic $300/mo, Growth $750/mo, " +
-      "Premium $2,000/mo) and marks the recommended one, 'Goals', and 'Next step'. Directories are included in every " +
-      "package — never present them as an add-on. Aim for one to two pages (roughly 500-800 words). ";
+      "a detailed 'Your website' section, a detailed 'Investment' section, 'Goals', and 'Next step'.\n" +
+      "The 'Your website' section must be a real explanation, not one line: explain in plain English what MS2GO does to " +
+      "the site (speed, mobile-first layout, conversion elements like click-to-call and quote/booking forms, trust " +
+      "signals, on-page local SEO) and why it matters to the owner. If the prospect has no website, frame it as building " +
+      "their first professional website and explain why not having one loses customers to competitors.\n" +
+      "The 'Investment' section must list ALL three packages (Basic $300/mo, Growth $750/mo, Premium $2,000/mo), mark the " +
+      "recommended one, and under each tier spell out in plain English what that money buys and what each higher tier " +
+      "adds over the one below it. State that every package is month-to-month with no setup fees. " +
+      "Directories are included in every package — never present them as an add-on. " +
+      "Aim for one to two pages (roughly 600-900 words). ";
 
   const system =
     structure +

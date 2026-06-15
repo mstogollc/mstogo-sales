@@ -112,6 +112,41 @@ describe("full proposal package (the default print/export output)", () => {
     expect(user).toMatch(/Basic — \$300\/month/);
     expect(user).toMatch(/Premium — \$2,000\/month/);
   });
+
+  // Justin's report: the rebuilt proposal lost the detailed website and
+  // cost/investment explanations the original had. The full package must carry
+  // real, multi-line explanations — not a single bullet each.
+  it("has a detailed website explanation section, not a one-liner", () => {
+    const text = fullProposalFallback(body); // Gulfport Dental, has no website set → unknown-website branch
+    expect(text).toMatch(/Your website — what we improve/i);
+    // Multiple concrete website improvements must be explained.
+    expect(text).toMatch(/mobile/i);
+    expect(text).toMatch(/conversion|click-to-call|booking form/i);
+    expect(text).toMatch(/trust signals/i);
+    expect(text).toMatch(/on-page SEO|local SEO/i);
+    // The website section spans several lines, not just a header + one bullet.
+    const websiteBlock = text.slice(text.indexOf("Your website"), text.indexOf("Investment"));
+    expect(websiteBlock.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("has a detailed cost/investment breakdown of what each tier buys", () => {
+    const text = fullProposalFallback(body);
+    const investBlock = text.slice(text.indexOf("Investment"));
+    // Each tier explains, in plain English, what the money buys (sub-bullets).
+    expect(investBlock).toMatch(/Everything in Basic/i);
+    expect(investBlock).toMatch(/Everything in Growth/i);
+    expect(investBlock).toMatch(/month-to-month/i);
+    expect(investBlock).toMatch(/no setup fees|no long-term contract/i);
+    // At least a handful of detail sub-bullets (the "–" lines) across tiers.
+    expect(investBlock.split("\n").filter((l) => l.trim().startsWith("–")).length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("the full-package prompt asks for detailed website and per-tier investment copy", () => {
+    const { system } = buildProposalPrompt({ ...body, format: "full" });
+    expect(system).toMatch(/'Your website' section must be a real explanation/i);
+    expect(system).toMatch(/what that money buys/i);
+    expect(system).toMatch(/month-to-month/i);
+  });
 });
 
 describe("intro letter (kept as a separate, lighter output)", () => {
@@ -160,6 +195,20 @@ describe("no-website handling never invents a URL (both formats)", () => {
     }
   });
 
+  it("the no-website full proposal explains building a first website in detail", () => {
+    const base: ProposalBody = { businessName: "Coastal Cafe", city: "Gulfport", state: "MS", noWebsite: true };
+    const full = fullProposalFallback(base);
+    expect(full).toMatch(/Your website — built from scratch/i);
+    expect(full).toMatch(/first professional website|professional, mobile-first website/i);
+    expect(full).toMatch(/competitor who does/i);
+    expect(full).toMatch(/click-to-call|booking form|convert/i);
+    expect(full).toMatch(/local SEO/i);
+    // Several explanation bullets, not one line — and still no invented URL.
+    const websiteBlock = full.slice(full.indexOf("Your website"), full.indexOf("Investment"));
+    expect(websiteBlock.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(3);
+    expect(websiteBlock).not.toMatch(/https?:\/\//);
+  });
+
   it("ignores any stale website when 'No existing website' is set", () => {
     const body: ProposalBody = {
       businessName: "Walk-In Barber Co",
@@ -198,6 +247,26 @@ describe("website address on the proposal", () => {
     expect(system).toMatch(/Never invent, alter, or substitute a different URL/i);
     expect(fullProposalFallback(body)).toContain("www.baysidemarine.com");
     expect(introLetterFallback({ ...body, format: "intro" })).toContain("Current website: www.baysidemarine.com");
+  });
+
+  it("the full proposal explains, in detail, what it improves on a provided website", () => {
+    const body: ProposalBody = {
+      businessName: "Bayside Marine Outfitters",
+      industry: "Marine Outfitter",
+      city: "Biloxi",
+      state: "MS",
+      website: "www.baysidemarine.com",
+    };
+    const full = fullProposalFallback(body);
+    // The provided URL is named exactly, inside a real explanation section.
+    expect(full).toMatch(/Your website — what we improve/i);
+    expect(full).toContain("www.baysidemarine.com");
+    expect(full).toMatch(/mobile/i);
+    expect(full).toMatch(/conversion|click-to-call|booking form/i);
+    expect(full).toMatch(/trust signals/i);
+    expect(full).toMatch(/on-page SEO|local SEO/i);
+    const websiteBlock = full.slice(full.indexOf("Your website"), full.indexOf("Investment"));
+    expect(websiteBlock.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(3);
   });
 
   it("a manual proposal with no website provided names no URL but still builds (both formats)", () => {
