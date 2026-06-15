@@ -1,6 +1,7 @@
 import { useState, type FC } from "react";
 import { api, type AnalyzeResponse } from "../api";
 import { resolveProspectFacts, missingKeyFacts, useActiveProspect } from "../lib/prospect";
+import { TypelessButton } from "./TypelessButton";
 
 interface Props {
   analysis: AnalyzeResponse | null;
@@ -184,6 +185,7 @@ export const EmailComposer: FC<Props> = ({ analysis }) => {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
+        <TypelessButton value={text} onChange={setText} />
       </div>
 
       <div className="actions">
