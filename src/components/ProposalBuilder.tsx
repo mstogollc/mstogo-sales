@@ -68,7 +68,8 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   const [manualCity, setManualCity] = useState("");
   const [manualState, setManualState] = useState("");
   const [output, setOutput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [outputFormat, setOutputFormat] = useState<"full" | "intro" | null>(null);
+  const [loading, setLoading] = useState<"full" | "intro" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState(prospect?.contactEmail ?? "");
   const [emailing, setEmailing] = useState(false);
@@ -80,13 +81,13 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
   const proposalCity = (hasProspect ? prospectCity || manualCity.trim() : manualCity.trim()).trim();
   const proposalState = (hasProspect ? prospectState || manualState.trim() : manualState.trim()).trim();
 
-  async function handleBuild() {
+  async function handleBuild(format: "full" | "intro") {
     setError(null);
     if (!businessName) {
       setError("Enter the business name to build the proposal.");
       return;
     }
-    setLoading(true);
+    setLoading(format);
     try {
       const goalsWithIndustry = [industry ? `Industry: ${industry}` : null, goals.trim() || null]
         .filter(Boolean)
@@ -114,13 +115,15 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
         goals: goalsWithIndustry || undefined,
         website: noWebsite ? undefined : website.trim() || undefined,
         noWebsite: noWebsite || undefined,
+        format,
       });
       setOutput(res.proposal);
+      setOutputFormat(res.format ?? format);
       setEmailStatus(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not build the proposal.");
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
@@ -163,8 +166,8 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
     <section className="card">
       <h2>Proposal builder</h2>
       <p className="subtitle">
-        A one-page proposal sales reps can send within five minutes — from a selected lead or typed in fresh from a
-        business card, walk-in, or cold knock.
+        Build the full MS2GO proposal package — or a short one-page intro letter — in minutes, from a selected lead or
+        typed in fresh from a business card, walk-in, or cold knock.
       </p>
 
       <div className="row">
@@ -331,10 +334,18 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
       </div>
 
       <div className="actions">
-        <button className="primary" onClick={handleBuild} disabled={loading}>
-          {loading ? "Building…" : "Build proposal"}
+        <button className="primary" onClick={() => handleBuild("full")} disabled={loading !== null}>
+          {loading === "full" ? "Building full proposal…" : "Build full proposal"}
+        </button>
+        <button className="ghost" onClick={() => handleBuild("intro")} disabled={loading !== null}>
+          {loading === "intro" ? "Building intro letter…" : "Build intro letter"}
         </button>
       </div>
+      <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>
+        <strong>Full proposal</strong> is the complete MS2GO package — what you stand to gain, the full growth system,
+        and all three investment levels. <strong>Intro letter</strong> is a short one-page first-touch note for someone
+        you haven't met yet.
+      </p>
 
       {output && (
         <>
@@ -357,12 +368,13 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
                 {emailing ? "Sending…" : "Email proposal"}
               </button>
               <button className="ghost" type="button" onClick={() => window.print()}>
-                Print / Save as PDF
+                {outputFormat === "intro" ? "Print intro letter / Save as PDF" : "Print full proposal / Save as PDF"}
               </button>
             </div>
             <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>
-              "Email proposal" sends this exact copy from your MS2GO sending address. Prefer to personalize it first?
-              Use Print / Save as PDF and attach it, or paste it into the Email Outreach module.
+              Showing your <strong>{outputFormat === "intro" ? "one-page intro letter" : "full proposal package"}</strong>.
+              "Email proposal" sends this exact copy from your MS2GO sending address. Prefer to personalize it first? Use
+              Print / Save as PDF and attach it, or paste it into the Email Outreach module.
             </p>
             {emailStatus && (
               <div className="notice" style={{ marginTop: 8 }}>
@@ -373,7 +385,7 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
           <div className="print-document">
             <div className="print-letterhead">
               <span className="print-brand">MS2GO</span>
-              <span className="print-brand-sub">Sales Proposal</span>
+              <span className="print-brand-sub">{outputFormat === "intro" ? "Intro Letter" : "Growth Proposal"}</span>
             </div>
             <pre className="preview proposal-output">{output}</pre>
           </div>
