@@ -1,6 +1,7 @@
 import { useState, type FC } from "react";
 import { api, type AnalyzeResponse } from "../api";
 import { useActiveProspect, updateActiveProspect } from "../lib/prospect";
+import { TypelessButton } from "./TypelessButton";
 
 interface Props {
   analysis: AnalyzeResponse | null;
@@ -331,6 +332,7 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
           value={goals}
           onChange={(e) => setGoals(e.target.value)}
         />
+        <TypelessButton value={goals} onChange={setGoals} />
       </div>
 
       <div className="actions">

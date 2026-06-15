@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FC } from "react";
 import { api, type AnalyzeResponse, type PlaceSignal } from "../api";
 import { Indicator } from "./Indicator";
+import { TypelessButton } from "./TypelessButton";
 import { updateActiveProspect, useActiveProspect } from "../lib/prospect";
 
 interface Props {
@@ -166,6 +167,7 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+          <TypelessButton value={notes} onChange={setNotes} />
         </div>
         <div className="actions">
           <button className="primary" onClick={handleAnalyze} disabled={loading}>

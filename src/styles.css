@@ -1169,3 +1169,77 @@ pre.preview {
     width: 100%;
   }
 }
+
+/* Typeless — browser-native voice input attached under long-form fields. */
+.typeless {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.typeless-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  color: var(--ms2go-gray-700);
+  border: 1px solid var(--ms2go-gray-200);
+  padding: 7px 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.typeless-button:hover:not(:disabled) {
+  border-color: var(--ms2go-blue);
+  color: var(--ms2go-blue);
+}
+
+.typeless-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.typeless-button.is-listening {
+  border-color: var(--ms2go-red);
+  color: var(--ms2go-red);
+  background: #fdf2f1;
+}
+
+.typeless-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ms2go-gray-500);
+  flex: none;
+}
+
+.typeless-button.is-listening .typeless-dot {
+  background: var(--ms2go-red);
+  animation: typeless-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes typeless-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+.typeless-hint {
+  font-size: 12px;
+  color: var(--ms2go-gray-500);
+}
+
+.typeless-error {
+  color: var(--ms2go-red);
+}
