@@ -722,6 +722,10 @@ pre.preview {
   background: var(--ms2go-green);
 }
 
+.heat-blue {
+  background: var(--ms2go-blue);
+}
+
 .heat-yellow {
   background: var(--ms2go-yellow);
 }
@@ -750,6 +754,62 @@ pre.preview {
   height: 12px;
   border-radius: 4px;
   display: inline-block;
+}
+
+.heatmap-cell {
+  cursor: default;
+  transition: transform 0.08s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.06);
+}
+
+.heatmap-talkpoints {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--ms2go-gray-200);
+  border-left: 4px solid var(--ms2go-blue);
+  border-radius: 10px;
+  background: var(--ms2go-gray-50);
+}
+
+.heatmap-talkpoints-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ms2go-navy);
+  margin: 0 0 8px;
+}
+
+.heatmap-talkpoints ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.heatmap-talkpoints li {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ms2go-gray-700);
+  margin-bottom: 6px;
+}
+
+.heatmap-talkpoints li:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .heatmap-grid {
+    max-width: 100%;
+  }
+  .heatmap-cell {
+    font-size: 12px;
+  }
+  .heatmap-stat {
+    flex: 1 1 calc(50% - 16px);
+    min-width: 0;
+  }
 }
 
 .heatmap-empty {

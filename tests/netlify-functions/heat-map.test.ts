@@ -38,6 +38,24 @@ describe("runHeatMap", () => {
     expect(result.message.toLowerCase()).not.toMatch(/env|api key|credential|undefined|null|error/);
   });
 
+  it("never fabricates ranking data when unavailable — no cells, no colors, no fake metrics", async () => {
+    delete process.env.GOOGLE_PLACES_API_KEY;
+    delete process.env.DATAFORSEO_LOGIN;
+    delete process.env.DATAFORSEO_PASSWORD;
+    const result = await runHeatMap({ businessName: "Joe's Pizza" }, async () => makeResponse({}));
+    // The grid must be empty so the UI cannot render any colored rank cells.
+    expect(result.cells).toEqual([]);
+    // Aggregate metrics must read as "no data", never invented numbers.
+    expect(result.averageRank).toBeNull();
+    expect(result.bestRank).toBeNull();
+    expect(result.worstRank).toBeNull();
+    expect(result.topThreeShare).toBe(0);
+    expect(result.topTenShare).toBe(0);
+    expect(result.weakZoneShare).toBe(0);
+    // No sales talking points are generated off non-existent data.
+    expect(result.talkingPoints).toEqual([]);
+  });
+
   describe("with credentials configured", () => {
     beforeEach(() => {
       process.env.GOOGLE_PLACES_API_KEY = "test-key";
@@ -79,7 +97,58 @@ describe("runHeatMap", () => {
       expect(result.cells).toHaveLength(9);
       expect(result.cells.every((c) => c.rank === 2 && c.level === "green")).toBe(true);
       expect(result.topThreeShare).toBe(100);
+      expect(result.topTenShare).toBe(100);
+      expect(result.weakZoneShare).toBe(0);
       expect(result.averageRank).toBe(2);
+      expect(result.bestRank).toBe(2);
+      expect(result.worstRank).toBe(2);
+      // A strong, real result should yield rep-ready talking points.
+      expect(result.talkingPoints.length).toBeGreaterThan(0);
+    });
+
+    it("colors each cell on the 4-color scale from its real rank", async () => {
+      // Rank varies by grid column so we exercise green/blue/yellow/red buckets.
+      const rankByCol = [2, 5, 12, 99];
+      const fakeFetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("places:searchText")) {
+          return makeResponse({ places: [{ location: { latitude: 30.36, longitude: -89.09 } }] });
+        }
+        const payload = JSON.parse(String(init?.body ?? "[]")) as Array<{ location_coordinate?: string }>;
+        const lng = Number((payload[0]?.location_coordinate ?? "0,0,14z").split(",")[1]);
+        // Map longitude offset back to a column index (center col = 1 for a 3-wide grid edges).
+        const col = lng < -89.09 ? 0 : lng > -89.09 ? 2 : 1;
+        const rank = rankByCol[col];
+        return makeResponse({
+          tasks: [{ result: [{ items: [{ rank_absolute: rank, title: "Joe's Pizza Gulfport" }] }] }],
+        });
+      };
+      const result = await runHeatMap(
+        { businessName: "Joe's Pizza", city: "Gulfport", state: "MS", gridSize: 3, stepMiles: 1 },
+        fakeFetch as typeof fetch,
+      );
+      expect(result.status).toBe("ok");
+      const levels = new Set(result.cells.map((c) => c.level));
+      // Cells exist on at least three distinct buckets across the columns.
+      expect(levels.has("green")).toBe(true);
+      expect(levels.has("blue")).toBe(true);
+      expect(levels.has("yellow")).toBe(true);
+    });
+
+    it("snaps odd grid-size requests to the nearest offered preset", async () => {
+      const fakeFetch = async (input: string | URL | Request): Promise<Response> => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("places:searchText")) {
+          return makeResponse({ places: [{ location: { latitude: 30.36, longitude: -89.09 } }] });
+        }
+        return makeResponse({ tasks: [{ result: [{ items: [] }] }] });
+      };
+      const result = await runHeatMap(
+        { businessName: "Joe's Pizza", city: "Gulfport", state: "MS", gridSize: 6, stepMiles: 1 },
+        fakeFetch as typeof fetch,
+      );
+      expect(result.gridSize).toBe(5);
+      expect(result.cells).toHaveLength(25);
     });
   });
 });

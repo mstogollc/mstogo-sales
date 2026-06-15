@@ -7,17 +7,23 @@ import {
   buildGeoGrid,
   rankToHeat,
   averageRank,
+  bestRank,
+  worstRank,
   topThreeShare,
+  topTenShare,
+  weakZoneShare,
   type GeoPoint,
   type HeatLevel,
 } from "./_lib/geo-grid";
 
 interface HeatMapBody {
   businessName?: string;
+  website?: string;
   keyword?: string;
   city?: string;
   state?: string;
   address?: string;
+  competitor?: string;
   lat?: number;
   lng?: number;
   gridSize?: number;
@@ -38,13 +44,69 @@ interface HeatMapResult {
   status: "ok" | "setup_required" | "needs_location" | "unavailable";
   message: string;
   businessName?: string;
+  website?: string;
   keyword?: string;
+  competitor?: string;
   center?: GeoPoint;
   gridSize: number;
   stepMiles: number;
   cells: HeatCell[];
+  /** Aggregate ranking metrics across the grid. Null when never ranked. */
   averageRank: number | null;
+  bestRank: number | null;
+  worstRank: number | null;
   topThreeShare: number;
+  topTenShare: number;
+  /** Share of grid that is red (buried / not found) — the opportunity zones. */
+  weakZoneShare: number;
+  /** Short, plain-English points a rep can read straight to a prospect. */
+  talkingPoints: string[];
+}
+
+/**
+ * Build plain-English sales talking points from the grid metrics. These never
+ * reference internals — they explain what the colors mean and how MS2GO helps.
+ */
+function buildTalkingPoints(args: {
+  topThreeShare: number;
+  topTenShare: number;
+  weakZoneShare: number;
+  bestRank: number | null;
+}): string[] {
+  const points: string[] = [];
+  const { topThreeShare: top3, topTenShare: top10, weakZoneShare: weak, bestRank: best } = args;
+
+  if (top3 >= 1) {
+    points.push(
+      `This business already lands in Google's local 3-pack across ${top3}% of the area (the green zones) — proof the location can rank, and a base MS2GO can expand.`,
+    );
+  } else if (best != null) {
+    points.push(
+      `The best this business does anywhere on the map is #${best}, and it never breaks into the top-3 local pack — the green zones competitors are taking instead.`,
+    );
+  } else {
+    points.push(
+      "This business doesn't appear in the local pack anywhere across the area — every searcher nearby is being handed to a competitor right now.",
+    );
+  }
+
+  if (weak > 0) {
+    points.push(
+      `${weak}% of the neighborhood is a red zone — searchers there don't see this business at all. That's the gap MS2GO closes by building out local map-pack coverage.`,
+    );
+  }
+
+  if (top10 > top3) {
+    points.push(
+      `In the blue and yellow zones the business is close but buried (ranks 4–15) — small reach, reviews, and listing work from MS2GO can push those spots up into the green pack.`,
+    );
+  }
+
+  points.push(
+    "Greener map = more calls. MS2GO grows the green/blue coverage so this business is the one nearby customers see first.",
+  );
+
+  return points;
 }
 
 function authHeader(login: string, password: string): string {
@@ -128,7 +190,9 @@ export async function runHeatMap(
   body: HeatMapBody,
   fetchImpl: typeof fetch = fetch,
 ): Promise<HeatMapResult> {
-  const gridSize = Math.max(3, Math.min(7, Math.floor(body.gridSize ?? 5)));
+  // Snap grid size to the offered odd presets (3×3, 5×5, 7×7).
+  const requested = Math.floor(body.gridSize ?? 5);
+  const gridSize = requested <= 3 ? 3 : requested >= 7 ? 7 : 5;
   const stepMiles = Math.max(0.25, Math.min(10, body.stepMiles ?? 1));
   const keyword = (body.keyword || body.businessName || "").trim();
 
@@ -138,12 +202,19 @@ export async function runHeatMap(
     message:
       "Map Pack Heat Map is ready to turn on. Once Google Places and DataForSEO are connected for this workspace, every search will plot exactly where this business ranks across the neighborhood.",
     businessName: body.businessName,
+    website: body.website,
     keyword: keyword || undefined,
+    competitor: body.competitor,
     gridSize,
     stepMiles,
     cells: [],
     averageRank: null,
+    bestRank: null,
+    worstRank: null,
     topThreeShare: 0,
+    topTenShare: 0,
+    weakZoneShare: 0,
+    talkingPoints: [],
   };
 
   const placesKey = getEnv("GOOGLE_PLACES_API_KEY");
@@ -207,6 +278,10 @@ export async function runHeatMap(
 
   const avg = averageRank(ranks);
   const share = topThreeShare(ranks);
+  const top10 = topTenShare(ranks);
+  const weak = weakZoneShare(ranks);
+  const best = bestRank(ranks);
+  const worst = worstRank(ranks);
 
   return {
     configured: true,
@@ -218,13 +293,25 @@ export async function runHeatMap(
           ? "Mixed local pack coverage. There's clear room to climb in the cooler zones on the map."
           : "This business isn't showing in the local pack across the area — a wide-open opportunity to win Map Pack visibility.",
     businessName: body.businessName,
+    website: body.website,
     keyword: keyword || undefined,
+    competitor: body.competitor,
     center,
     gridSize,
     stepMiles,
     cells,
     averageRank: avg,
+    bestRank: best,
+    worstRank: worst,
     topThreeShare: share,
+    topTenShare: top10,
+    weakZoneShare: weak,
+    talkingPoints: buildTalkingPoints({
+      topThreeShare: share,
+      topTenShare: top10,
+      weakZoneShare: weak,
+      bestRank: best,
+    }),
   };
 }
 
