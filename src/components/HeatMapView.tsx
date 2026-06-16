@@ -17,16 +17,29 @@ interface LeafletLayer {
   addTo(map: LeafletMap): LeafletLayer;
   bindTooltip(content: string): LeafletLayer;
 }
+interface LeafletDivIcon {
+  options: Record<string, unknown>;
+}
 interface LeafletStatic {
   map(el: HTMLElement, opts?: Record<string, unknown>): LeafletMap;
   tileLayer(url: string, opts?: Record<string, unknown>): LeafletLayer;
   circleMarker(latlng: [number, number], opts?: Record<string, unknown>): LeafletLayer;
+  marker(latlng: [number, number], opts?: Record<string, unknown>): LeafletLayer;
+  divIcon(opts: Record<string, unknown>): LeafletDivIcon;
 }
 
 declare global {
   interface Window {
     L?: LeafletStatic;
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 let leafletPromise: Promise<LeafletStatic | null> | null = null;
@@ -113,15 +126,17 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
     if (points.length === 0) return;
 
     for (const p of points) {
-      const marker = L.circleMarker([p.lat, p.lng], {
-        radius: 7,
-        color: "#ffffff",
-        weight: 1.5,
-        fillColor: LEVEL_COLOR[p.level],
-        fillOpacity: 0.92,
-      })
-        .addTo(map)
-        .bindTooltip(p.title);
+      const size = 34;
+      const icon = L.divIcon({
+        className: "heat-pin-wrap",
+        html: `<span class="heat-pin heat-pin-${p.level}" style="background:${LEVEL_COLOR[p.level]}">${escapeHtml(
+          p.marker,
+        )}</span>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        tooltipAnchor: [0, -size / 2],
+      });
+      const marker = L.marker([p.lat, p.lng], { icon }).addTo(map).bindTooltip(p.title);
       markersRef.current.push(marker);
     }
 
