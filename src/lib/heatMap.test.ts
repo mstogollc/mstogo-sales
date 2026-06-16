@@ -122,6 +122,34 @@ describe("toMapPoints", () => {
     const points = toMapPoints([cell({ rank: 6, lat: 34.7, lng: -86.6 })]);
     expect(points[0].marker).toBe("6");
   });
+
+  // Mirrors the live "Adler Pest Control, Madison AL, 5x5" report: the business
+  // ranks nowhere, so the API returns 25 not-found cells. Every one of them must
+  // still become a plottable red NF marker — null-rank cells are never hidden.
+  it("plots all 25 cells of an all-red / not-found 5x5 grid as red NF points", () => {
+    const center = { lat: 34.6993, lng: -86.7483 }; // Madison, AL
+    const cells: HeatCell[] = [];
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 5; col++) {
+        cells.push(
+          cell({
+            row,
+            col,
+            lat: center.lat + (row - 2) * 0.014,
+            lng: center.lng + (col - 2) * 0.017,
+            rank: null,
+            level: "red",
+          }),
+        );
+      }
+    }
+
+    const points = toMapPoints(cells);
+    expect(points).toHaveLength(25);
+    expect(points.every((p) => p.level === "red")).toBe(true);
+    expect(points.every((p) => p.marker === "NF")).toBe(true);
+    expect(points.every((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))).toBe(true);
+  });
 });
 
 describe("boundsOf", () => {

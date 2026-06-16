@@ -93,6 +93,12 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<LeafletLayer[]>([]);
   const [failed, setFailed] = useState(false);
+  // Flips true once the Leaflet map instance exists. The marker effect depends
+  // on it so markers are (re)drawn as soon as the async map is ready — not just
+  // when `points` changes. Without this, the first render's points arrive before
+  // Leaflet finishes loading, the marker effect bails, and (since points never
+  // change again) markers are never drawn.
+  const [mapReady, setMapReady] = useState(false);
 
   // Create the map once Leaflet is available and the container is mounted.
   useEffect(() => {
@@ -111,6 +117,7 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
       mapRef.current = map;
+      if (!cancelled) setMapReady(true);
     });
     return () => {
       cancelled = true;
@@ -119,10 +126,11 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
         mapRef.current = null;
         markersRef.current = [];
       }
+      setMapReady(false);
     };
   }, []);
 
-  // Redraw markers whenever the points change.
+  // Redraw markers whenever the points change or the map becomes ready.
   useEffect(() => {
     const map = mapRef.current;
     const L = window.L;
@@ -181,7 +189,7 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
         { padding: [28, 28], maxZoom: 14 },
       );
     }
-  }, [points]);
+  }, [points, mapReady]);
 
   if (failed) {
     return (
