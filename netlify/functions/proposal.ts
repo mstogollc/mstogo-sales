@@ -6,7 +6,6 @@ import {
   PROPOSAL_SYSTEMS,
   recommendPackage,
   WEBSITE_BUILD,
-  DIRECTORY_ANNUAL,
   START_TODAY,
   usd,
   type MS2GOPackage,
@@ -162,9 +161,9 @@ const TIER_DETAIL: Record<MS2GOPackage["tier"], readonly string[]> = {
 /**
  * Renders the three monthly MS2GO packages as the "Monthly Service Options"
  * section, with the recommended tier called out and a plain-English breakdown of
- * what each tier buys. Directory visibility is included in every tier, so this
- * section never positions ongoing directory management as an add-on. The one-time
- * launch-year directory activation is priced separately in "Start Today".
+ * what each tier buys. Directory visibility is included in every tier — Basic,
+ * Growth, and Premium — so this section never positions directories as an add-on
+ * or a separate one-time charge.
  */
 function monthlyServiceSection(recommendedTier: MS2GOPackage["tier"]): string {
   const lines = [
@@ -214,29 +213,35 @@ function investmentSection(): string {
 }
 
 /**
- * Annual online directory section. Directory *visibility* is included in every
- * monthly package; this is the one-time-per-year launch buildout/activation that
- * gets the business listed and standardized across every major directory.
+ * Online directory section. Directory visibility is INCLUDED in every monthly
+ * package — Basic, Growth, and Premium — so there is no separate directory fee.
+ * Higher tiers simply include more active directory management, cleanup, and
+ * expansion. This section never prices directories as a one-time charge.
  */
 function directorySection(): string {
   return [
-    "Online Directory Visibility — Launch-Year Activation",
-    "  Ongoing directory visibility is included in every monthly package above. Separately, the launch-year",
-    "  directory buildout is the highest-leverage one-time-per-year investment you can make: we place your",
-    "  business across all the major directories — Google Business Profile, Bing Places, Apple Maps, Yelp, BBB,",
-    "  and the major industry-specific directories — with consistent name, address, phone, and service-area data.",
+    "Online Directory Visibility — Included in Every Package",
+    "  Directory visibility is included in every MS2GO package — Basic, Growth, and Premium — at no extra cost.",
+    "  We place your business across all the major directories — Google Business Profile, Bing Places, Apple Maps,",
+    "  Yelp, BBB, and the major industry-specific directories — with consistent name, address, phone, and",
+    "  service-area data. Each package includes the directory foundation appropriate to that tier:",
+    "  • Basic — your core listings claimed and standardized everywhere, kept accurate month to month.",
+    "  • Growth — everything in Basic, plus active monitoring and expansion across more industry directories.",
+    "  • Premium — the most aggressive directory management, cleanup, and expansion we offer, fully hands-off for you.",
+    "  Why it matters:",
     "  • Immediate local SEO impact — consistent listings are one of the strongest local ranking signals.",
     "  • AI Search Optimization — listed and recommended inside AI answers (ChatGPT, Google AI Overviews, Perplexity, Gemini).",
     "  • Real lead generation — drives phone calls and map-based visits from buyers ready now.",
-    `  Special introductory price: ${usd(DIRECTORY_ANNUAL)} per year — paid once and good for the full year.`,
   ].join("\n");
 }
 
 /**
- * "Start Today" — the complete day-one investment math, built from the shared
- * constants: website ($2,500) + directory ($2,000) = $4,500 recommended minimum,
- * plus the first month of the recommended Premium package ($2,000) = $6,500 full
- * package. Day-one alternatives at Growth and Basic are offered too.
+ * "Start Today" — the day-one investment math. Directory visibility is included
+ * in every monthly package, so there is NO separate directory line item. Day one
+ * is the introductory website build ($2,500) plus the first month of the
+ * recommended Premium package ($2,000) = $4,500 to start today. The website build
+ * is taken as a 50% deposit ($1,250) to begin with the remaining $1,250 due at
+ * launch. Lighter Growth and Basic day-one options are offered too.
  */
 function startTodaySection(): string {
   const basic = MS2GO_BRAND.packages.find((p) => p.tier === "Basic")!;
@@ -244,22 +249,20 @@ function startTodaySection(): string {
   const premium = MS2GO_BRAND.packages.find((p) => p.tier === "Premium")!;
   return [
     "Start Today — The Full Package",
-    "  If you move forward with the website plus the annual directory service today — and add the",
-    "  recommended Premium monthly package — here is the complete day-one investment broken out:",
+    "  If you move forward with the website build today — and add the recommended Premium monthly",
+    "  package — here is the complete day-one investment broken out. Directory visibility is already",
+    "  included in your monthly package, so there is no separate directory charge:",
     "",
     `  • Website design, development, and launch (introductory 50% off) — ${usd(WEBSITE_BUILD.introductory)}`,
-    `  • Annual Online Directory Services (launch-year activation) — ${usd(DIRECTORY_ANNUAL)}`,
-    `  • Total to Start Today — ${usd(START_TODAY.websitePlusDirectory)}`,
+    `  • First month of recommended Premium Package — ${usd(premium.price)}`,
+    `  • Total to Start Today — ${usd(START_TODAY.websitePlusPremium)}`,
     "",
-    `  • Plus first month of recommended Premium Package (optional) — ${usd(premium.price)}`,
-    `  • Grand Total Day-One Investment (Full Package) — ${usd(START_TODAY.fullPackage)}`,
-    "",
-    `  The website plus directory service together (${usd(START_TODAY.websitePlusDirectory)}) is the recommended`,
-    "  minimum to get positioned correctly online. Monthly billing begins on launch day, not at signing —",
-    "  and you can cancel anytime with 30 days' notice. No contract, no handcuffs, ever.",
-    "  Prefer a lighter start? Day-one alternatives:",
-    `    – Website + directory + first month Growth (${usd(growth.price)}/mo) — ${usd(START_TODAY.websitePlusDirectory + growth.price)}`,
-    `    – Website + directory + first month Basic (${usd(basic.price)}/mo) — ${usd(START_TODAY.websitePlusDirectory + basic.price)}`,
+    `  How the website build is paid: a 50% deposit (${usd(WEBSITE_BUILD.deposit)}) begins the work and the`,
+    `  remaining ${usd(WEBSITE_BUILD.introductory - WEBSITE_BUILD.deposit)} is due at launch. Monthly billing begins on launch day, not at`,
+    "  signing — and you can cancel anytime with 30 days' notice. No contract, no handcuffs, ever.",
+    "  Prefer a lighter start? Day-one alternatives (website build plus first month):",
+    `    – Website + first month Growth (${usd(growth.price)}/mo) — ${usd(WEBSITE_BUILD.introductory + growth.price)}`,
+    `    – Website + first month Basic (${usd(basic.price)}/mo) — ${usd(WEBSITE_BUILD.introductory + basic.price)}`,
   ].join("\n");
 }
 
@@ -595,12 +598,15 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
       "This website build cost is REQUIRED and must appear — it is the piece prior drafts were missing.\n" +
       `11. Monthly Service Options — list ALL three monthly packages (${monthlyList}), mark the recommended one, and under each ` +
       "spell out in plain English what that money buys. Month-to-month, no setup fees, cancel anytime with 30 days' notice. " +
-      "Directory visibility is included in every package — never present ongoing directories as an add-on.\n" +
-      `12. Online Directory Visibility — the launch-year directory buildout/activation at ${usd(DIRECTORY_ANNUAL)}/year ` +
-      "(one-time-per-year). Ongoing visibility stays included in the monthly packages; this is the launch activation only.\n" +
-      `13. Start Today — the day-one math: website ${usd(WEBSITE_BUILD.introductory)} + directory ${usd(DIRECTORY_ANNUAL)} = ` +
-      `${usd(START_TODAY.websitePlusDirectory)} recommended minimum; plus first month of Premium (${usd(START_TODAY.premiumFirstMonth)}) = ` +
-      `${usd(START_TODAY.fullPackage)} full package. Offer Growth and Basic day-one alternatives too.\n` +
+      "Directory visibility is included in every package — never present directories as an add-on or a separate charge.\n" +
+      "12. Online Directory Visibility — Included in Every Package. State plainly that directory visibility is included in " +
+      "Basic, Growth, and Premium at no extra cost, and that each package includes the directory foundation appropriate to that " +
+      "tier (Premium includes the most aggressive management, cleanup, and expansion). Do NOT present any separate one-time or " +
+      "annual directory fee.\n" +
+      `13. Start Today — the day-one math, with NO separate directory line item (directories are included in the monthly package): ` +
+      `website ${usd(WEBSITE_BUILD.introductory)} + first month of recommended Premium (${usd(START_TODAY.premiumFirstMonth)}) = ` +
+      `${usd(START_TODAY.websitePlusPremium)} to start today. The website build is a 50% deposit (${usd(WEBSITE_BUILD.deposit)}) to begin ` +
+      "with the remaining 50% due at launch. Offer lighter Growth and Basic day-one alternatives (website plus first month) too.\n" +
       `14. What Is Not Included in the Initial Build — keep the ${usd(WEBSITE_BUILD.introductory)} fee transparent.\n` +
       "15. Project Timeline — One-Week Fast Track (Day 1 through Day 7).\n" +
       "16. Why MS2GO.\n" +

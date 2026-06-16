@@ -3,7 +3,6 @@ import {
   MS2GO_BRAND,
   recommendPackage,
   WEBSITE_BUILD,
-  DIRECTORY_ANNUAL,
   START_TODAY,
 } from "./brand";
 
@@ -42,13 +41,17 @@ describe("MS2GO website-build pricing (the original Founding Partner numbers)", 
     expect(WEBSITE_BUILD.deposit).toBe(WEBSITE_BUILD.introductory / 2);
   });
 
-  it("prices the launch-year directory activation at $2,000/year", () => {
-    expect(DIRECTORY_ANNUAL).toBe(2000);
+  it("no longer encodes a separate $2,000 directory charge in the Start Today math", () => {
+    // Directories are now included in every monthly package, so the day-one math
+    // must not reintroduce a separate directory line item or the old $6,500 total.
+    expect(Object.values(START_TODAY)).not.toContain(6500);
+    expect("websitePlusDirectory" in START_TODAY).toBe(false);
+    expect("fullPackage" in START_TODAY).toBe(false);
   });
 
-  it("computes Start Today math: $4,500 website+directory and $6,500 full package", () => {
-    expect(START_TODAY.websitePlusDirectory).toBe(4500);
-    expect(START_TODAY.fullPackage).toBe(6500);
-    expect(START_TODAY.websitePlusDirectory + START_TODAY.premiumFirstMonth).toBe(START_TODAY.fullPackage);
+  it("computes Start Today math without a directory charge: website $2,500 + first month Premium $2,000 = $4,500", () => {
+    expect(START_TODAY.premiumFirstMonth).toBe(2000);
+    expect(START_TODAY.websitePlusPremium).toBe(4500);
+    expect(WEBSITE_BUILD.introductory + START_TODAY.premiumFirstMonth).toBe(START_TODAY.websitePlusPremium);
   });
 });

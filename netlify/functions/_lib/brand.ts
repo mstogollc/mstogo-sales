@@ -45,23 +45,16 @@ export const WEBSITE_BUILD = {
 } as const;
 
 /**
- * Annual online directory buildout/activation. Directory *visibility* is included
- * in every monthly package; this $2,000/yr line is the launch-year directory
- * activation across all major directories (Google, Bing, Apple Maps, Yelp, BBB,
- * and industry-specific sites), positioned as a one-time-per-year add-on in the
- * "Start Today" math — not a contradiction of "directories in every package".
- */
-export const DIRECTORY_ANNUAL = 2000;
-
-/**
- * "Start Today" day-one math, derived from the constants above:
- *   website ($2,500) + directory ($2,000) = $4,500 recommended minimum
- *   + first month Premium ($2,000) = $6,500 full package
+ * "Start Today" day-one math. Directory visibility is now included in every
+ * monthly package, so there is NO separate directory line item. Day one is the
+ * introductory website build plus the first month of the recommended package:
+ *   website ($2,500) + first month Premium ($2,000) = $4,500 to start today
+ * Of the website build, a 50% deposit ($1,250) begins the work and the
+ * remaining $1,250 is due at launch.
  */
 export const START_TODAY = {
-  websitePlusDirectory: WEBSITE_BUILD.introductory + DIRECTORY_ANNUAL, // 4500
-  premiumFirstMonth: 2000,
-  fullPackage: WEBSITE_BUILD.introductory + DIRECTORY_ANNUAL + 2000, // 6500
+  premiumFirstMonth: MS2GO_BRAND.packages[2].price, // 2000
+  websitePlusPremium: WEBSITE_BUILD.introductory + MS2GO_BRAND.packages[2].price, // 4500
 } as const;
 
 export function usd(amount: number): string {
