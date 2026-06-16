@@ -1,26 +1,17 @@
-import { useState, type FC } from "react";
-import { api, type HeatMapResponse, type HeatCell, type HeatLevel } from "../api";
+import { useMemo, useState, type FC } from "react";
+import { api, type HeatMapResponse, type HeatCell } from "../api";
 import { useActiveProspect } from "../lib/prospect";
+import { HeatMapView } from "./HeatMapView";
+import { LEVEL_COPY, LEVEL_ORDER, pointLabel, pointTitle, toMapPoints } from "../lib/heatMap";
 
 const GRID_OPTIONS = [3, 5, 7] as const;
 
-const LEVEL_COPY: Record<HeatLevel, { label: string; range: string }> = {
-  green: { label: "Owning it", range: "Ranks 1–3" },
-  blue: { label: "Just outside", range: "Ranks 4–7" },
-  yellow: { label: "Buried", range: "Ranks 8–15" },
-  red: { label: "Invisible", range: "16+ / not found" },
-};
-
 function cellLabel(cell: HeatCell): string {
-  if (cell.rank == null || cell.rank <= 0) return "—";
-  return String(cell.rank);
+  return pointLabel(cell.rank);
 }
 
 function cellTitle(cell: HeatCell): string {
-  if (cell.rank == null || cell.rank <= 0) {
-    return "Not found in the local results at this spot";
-  }
-  return `Ranks #${cell.rank} here · ${LEVEL_COPY[cell.level].label}`;
+  return pointTitle(cell.rank);
 }
 
 const SETUP_STATES = new Set(["setup_required", "needs_location", "unavailable"]);
@@ -38,6 +29,7 @@ export const MapPackHeatMap: FC = () => {
   const [result, setResult] = useState<HeatMapResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [showGridView, setShowGridView] = useState(false);
 
   async function handleRun() {
     setNotice(null);
@@ -70,8 +62,9 @@ export const MapPackHeatMap: FC = () => {
     }
   }
 
-  const showGrid = result?.status === "ok" && result.cells.length > 0;
+  const hasResult = result?.status === "ok" && result.cells.length > 0;
   const showSetup = result != null && SETUP_STATES.has(result.status);
+  const mapPoints = useMemo(() => (hasResult ? toMapPoints(result.cells) : []), [hasResult, result]);
 
   return (
     <section className="card">
@@ -186,7 +179,7 @@ export const MapPackHeatMap: FC = () => {
         </>
       )}
 
-      {showGrid && result && (
+      {hasResult && result && (
         <>
           <div className="divider" />
 
@@ -219,28 +212,46 @@ export const MapPackHeatMap: FC = () => {
 
           <p className="heatmap-readout">{result.message}</p>
 
-          <div
-            className="heatmap-grid"
-            style={{ gridTemplateColumns: `repeat(${result.gridSize}, 1fr)` }}
-          >
-            {result.cells.map((cell) => (
-              <div
-                key={`${cell.row}-${cell.col}`}
-                className={`heatmap-cell heat-${cell.level}`}
-                title={cellTitle(cell)}
-              >
-                {cellLabel(cell)}
-              </div>
-            ))}
-          </div>
+          {mapPoints.length > 0 ? (
+            <div className="heatmap-map-wrap">
+              <HeatMapView points={mapPoints} center={result.center} />
+            </div>
+          ) : (
+            <div className="heatmap-map-fallback notice">
+              No mappable coordinates came back for this search, so the grid below shows the ranking data instead.
+            </div>
+          )}
 
           <div className="heatmap-legend">
-            {(Object.keys(LEVEL_COPY) as HeatLevel[]).map((level) => (
+            {LEVEL_ORDER.map((level) => (
               <span key={level}>
                 <i className={`heat-dot heat-${level}`} /> {LEVEL_COPY[level].label} · {LEVEL_COPY[level].range}
               </span>
             ))}
           </div>
+
+          <div className="heatmap-view-toggle">
+            <button type="button" className="ghost" onClick={() => setShowGridView((v) => !v)}>
+              {showGridView ? "Hide grid view" : "Show grid view"}
+            </button>
+          </div>
+
+          {showGridView && (
+            <div
+              className="heatmap-grid"
+              style={{ gridTemplateColumns: `repeat(${result.gridSize}, 1fr)` }}
+            >
+              {result.cells.map((cell) => (
+                <div
+                  key={`${cell.row}-${cell.col}`}
+                  className={`heatmap-cell heat-${cell.level}`}
+                  title={cellTitle(cell)}
+                >
+                  {cellLabel(cell)}
+                </div>
+              ))}
+            </div>
+          )}
 
           {result.talkingPoints.length > 0 && (
             <div className="heatmap-talkpoints">

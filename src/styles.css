@@ -701,10 +701,39 @@ pre.preview {
   margin: 0 0 14px;
 }
 
+.heatmap-map-wrap {
+  margin: 4px 0 14px;
+}
+
+.heatmap-map {
+  width: 100%;
+  height: 460px;
+  border-radius: 12px;
+  border: 1px solid var(--ms2go-gray-200);
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* Leaflet sets its own z-index stack; keep it from covering app chrome. */
+.heatmap-map .leaflet-pane,
+.heatmap-map .leaflet-top,
+.heatmap-map .leaflet-bottom {
+  z-index: 1;
+}
+
+.heatmap-map-fallback {
+  margin: 4px 0 14px;
+}
+
+.heatmap-view-toggle {
+  margin-top: 14px;
+}
+
 .heatmap-grid {
   display: grid;
   gap: 6px;
   max-width: 420px;
+  margin-top: 12px;
 }
 
 .heatmap-cell {
@@ -809,6 +838,9 @@ pre.preview {
   .heatmap-stat {
     flex: 1 1 calc(50% - 16px);
     min-width: 0;
+  }
+  .heatmap-map {
+    height: 360px;
   }
 }
 
