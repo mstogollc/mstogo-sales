@@ -6,7 +6,7 @@ import {
   PROPOSAL_SYSTEMS,
   recommendPackage,
   WEBSITE_BUILD,
-  START_TODAY,
+  startTodayTotal,
   usd,
   type MS2GOPackage,
 } from "./_lib/brand";
@@ -236,33 +236,36 @@ function directorySection(): string {
 }
 
 /**
- * "Start Today" — the day-one investment math. Directory visibility is included
- * in every monthly package, so there is NO separate directory line item. Day one
- * is the introductory website build ($2,500) plus the first month of the
- * recommended Premium package ($2,000) = $4,500 to start today. The website build
- * is taken as a 50% deposit ($1,250) to begin with the remaining $1,250 due at
- * launch. Lighter Growth and Basic day-one options are offered too.
+ * "Start Today" — the day-one investment math, always aligned to the SELECTED
+ * package so the wording and the total never disagree (the "$4,500 … Growth $750"
+ * bug). Day one is the introductory website build ($2,500) plus the first month
+ * of the recommended tier: Premium = $4,500, Growth = $3,250, Basic = $2,800.
+ * Directory visibility is included in every package, so there is NO separate
+ * directory line item. The website build is a 50% deposit ($1,250) to begin with
+ * the remaining $1,250 due at launch. The other two tiers are offered as
+ * alternatives. Returned as a fixed block the LLM is told to reproduce verbatim.
  */
-function startTodaySection(): string {
-  const basic = MS2GO_BRAND.packages.find((p) => p.tier === "Basic")!;
-  const growth = MS2GO_BRAND.packages.find((p) => p.tier === "Growth")!;
-  const premium = MS2GO_BRAND.packages.find((p) => p.tier === "Premium")!;
+function startTodaySection(recommendedTier: MS2GOPackage["tier"]): string {
+  const selected = MS2GO_BRAND.packages.find((p) => p.tier === recommendedTier) ?? MS2GO_BRAND.packages[1];
+  const others = MS2GO_BRAND.packages.filter((p) => p.tier !== selected.tier);
+  const selectedTotal = startTodayTotal(selected.tier);
   return [
     "Start Today — The Full Package",
-    "  If you move forward with the website build today — and add the recommended Premium monthly",
+    `  If you move forward with the website build today — and add the recommended ${selected.tier} monthly`,
     "  package — here is the complete day-one investment broken out. Directory visibility is already",
     "  included in your monthly package, so there is no separate directory charge:",
     "",
     `  • Website design, development, and launch (introductory 50% off) — ${usd(WEBSITE_BUILD.introductory)}`,
-    `  • First month of recommended Premium Package — ${usd(premium.price)}`,
-    `  • Total to Start Today — ${usd(START_TODAY.websitePlusPremium)}`,
+    `  • First month of recommended ${selected.tier} Package — ${usd(selected.price)}`,
+    `  • Total to Start Today — ${usd(selectedTotal)}`,
     "",
     `  How the website build is paid: a 50% deposit (${usd(WEBSITE_BUILD.deposit)}) begins the work and the`,
     `  remaining ${usd(WEBSITE_BUILD.introductory - WEBSITE_BUILD.deposit)} is due at launch. Monthly billing begins on launch day, not at`,
     "  signing — and you can cancel anytime with 30 days' notice. No contract, no handcuffs, ever.",
-    "  Prefer a lighter start? Day-one alternatives (website build plus first month):",
-    `    – Website + first month Growth (${usd(growth.price)}/mo) — ${usd(WEBSITE_BUILD.introductory + growth.price)}`,
-    `    – Website + first month Basic (${usd(basic.price)}/mo) — ${usd(WEBSITE_BUILD.introductory + basic.price)}`,
+    "  Prefer a different level? Day-one alternatives (website build plus first month):",
+    ...others.map(
+      (p) => `    – Website + first month ${p.tier} (${usd(p.price)}/mo) — ${usd(startTodayTotal(p.tier))}`,
+    ),
   ].join("\n");
 }
 
@@ -494,7 +497,7 @@ export function fullProposalFallback(body: ProposalBody): string {
     "",
     directorySection(),
     "",
-    startTodaySection(),
+    startTodaySection(tier.tier),
     "",
     notIncludedSection(),
     "",
@@ -603,10 +606,13 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
       "Basic, Growth, and Premium at no extra cost, and that each package includes the directory foundation appropriate to that " +
       "tier (Premium includes the most aggressive management, cleanup, and expansion). Do NOT present any separate one-time or " +
       "annual directory fee.\n" +
-      `13. Start Today — the day-one math, with NO separate directory line item (directories are included in the monthly package): ` +
-      `website ${usd(WEBSITE_BUILD.introductory)} + first month of recommended Premium (${usd(START_TODAY.premiumFirstMonth)}) = ` +
-      `${usd(START_TODAY.websitePlusPremium)} to start today. The website build is a 50% deposit (${usd(WEBSITE_BUILD.deposit)}) to begin ` +
-      "with the remaining 50% due at launch. Offer lighter Growth and Basic day-one alternatives (website plus first month) too.\n" +
+      "13. Start Today — the day-one math, with NO separate directory line item (directories are included in the monthly " +
+      "package). The total MUST equal the website build plus the FIRST MONTH OF THE RECOMMENDED PACKAGE — never mix a " +
+      "package name with a different package's total. Reproduce the following block EXACTLY, word for word and number for " +
+      "number; do not change the tier name, any price, or the total:\n" +
+      "-----\n" +
+      startTodaySection(recommended.tier) +
+      "\n-----\n" +
       `14. What Is Not Included in the Initial Build — keep the ${usd(WEBSITE_BUILD.introductory)} fee transparent.\n` +
       "15. Project Timeline — One-Week Fast Track (Day 1 through Day 7).\n" +
       "16. Why MS2GO.\n" +
@@ -653,6 +659,9 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
     !body.noWebsite && website ? `Current website (the ONLY URL you may reference): ${website}` : null,
     `Recommended package: ${recommended.tier} — $${recommended.price}/${recommended.cadence}`,
     `Package summary: ${recommended.summary}`,
+    !isIntro
+      ? `Start Today total (website ${usd(WEBSITE_BUILD.introductory)} + first month ${recommended.tier} ${usd(recommended.price)}): ${usd(startTodayTotal(recommended.tier))} — use this exact total in the Start Today section.`
+      : null,
     !isIntro
       ? "All packages (list every one in the Investment section):\n" +
         MS2GO_BRAND.packages

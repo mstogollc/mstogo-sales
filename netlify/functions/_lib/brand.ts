@@ -47,8 +47,11 @@ export const WEBSITE_BUILD = {
 /**
  * "Start Today" day-one math. Directory visibility is now included in every
  * monthly package, so there is NO separate directory line item. Day one is the
- * introductory website build plus the first month of the recommended package:
- *   website ($2,500) + first month Premium ($2,000) = $4,500 to start today
+ * introductory website build plus the first month of the SELECTED package, so
+ * the total always matches the package the proposal recommends:
+ *   Basic   — website $2,500 + $300   = $2,800
+ *   Growth  — website $2,500 + $750   = $3,250
+ *   Premium — website $2,500 + $2,000 = $4,500
  * Of the website build, a 50% deposit ($1,250) begins the work and the
  * remaining $1,250 is due at launch.
  */
@@ -56,6 +59,17 @@ export const START_TODAY = {
   premiumFirstMonth: MS2GO_BRAND.packages[2].price, // 2000
   websitePlusPremium: WEBSITE_BUILD.introductory + MS2GO_BRAND.packages[2].price, // 4500
 } as const;
+
+/**
+ * The day-one "Start Today" total for a given tier: the introductory website
+ * build plus that tier's first month. Centralized here so the deterministic
+ * fallback, the LLM prompt, and the tests can never disagree on the math — the
+ * exact bug behind the "$4,500 … Growth $750" drift.
+ */
+export function startTodayTotal(tier: MS2GOPackage["tier"]): number {
+  const pkg = MS2GO_BRAND.packages.find((p) => p.tier === tier) ?? MS2GO_BRAND.packages[1];
+  return WEBSITE_BUILD.introductory + pkg.price;
+}
 
 export function usd(amount: number): string {
   return `$${amount.toLocaleString("en-US")}`;
