@@ -711,14 +711,19 @@ pre.preview {
   border-radius: 12px;
   border: 1px solid var(--ms2go-gray-200);
   overflow: hidden;
+  /* A new stacking context (with overflow:hidden) keeps the whole map — and its
+     internal Leaflet panes — from overlapping app chrome, without touching
+     Leaflet's own pane z-index stack. */
+  position: relative;
   z-index: 0;
 }
 
-/* Leaflet sets its own z-index stack; keep it from covering app chrome. */
-.heatmap-map .leaflet-pane,
-.heatmap-map .leaflet-top,
-.heatmap-map .leaflet-bottom {
-  z-index: 1;
+/* Do NOT flatten .leaflet-pane z-indexes here: Leaflet relies on its internal
+   stack (tiles 200 < overlays 400 < markers 600) to paint markers above the
+   map tiles. Keep the marker/tooltip panes explicitly on top as a safeguard. */
+.heatmap-map .leaflet-marker-pane,
+.heatmap-map .leaflet-tooltip-pane {
+  z-index: 650;
 }
 
 .heatmap-map-fallback {
