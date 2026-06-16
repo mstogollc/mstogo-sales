@@ -240,7 +240,8 @@ export const MapPackHeatMap: FC = () => {
           <p className="heatmap-readout">{result.message}</p>
 
           {mapPoints.length > 0 ? (
-            <div className="heatmap-map-wrap">
+            <div className="heatmap-map-wrap heatmap-printable-map">
+              <p className="heatmap-print-map-heading">Local ranking map</p>
               <HeatMapView points={mapPoints} center={result.center} />
             </div>
           ) : (
@@ -260,15 +261,15 @@ export const MapPackHeatMap: FC = () => {
                     alignItems: "center",
                     justifyContent: "center",
                     boxSizing: "border-box",
-                    width: 44,
-                    height: 44,
+                    width: 30,
+                    height: 30,
                     borderRadius: "50%",
                     background: LEVEL_COLOR[level],
-                    border: "4px solid #ffffff",
-                    boxShadow: "0 0 0 2px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.4)",
+                    border: "3px solid #ffffff",
+                    boxShadow: "0 0 0 1.5px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.4)",
                     color: markerTextColor(level),
                     fontWeight: 800,
-                    fontSize: LEGEND_SAMPLE[level].length >= 2 ? 15 : 18,
+                    fontSize: LEGEND_SAMPLE[level].length >= 2 ? 11 : 13,
                     lineHeight: 1,
                   }}
                 >
@@ -287,6 +288,9 @@ export const MapPackHeatMap: FC = () => {
               Print heat map / Save as PDF
             </button>
           </div>
+          <p className="heatmap-print-hint no-print">
+            Wait for the map to finish loading before printing.
+          </p>
 
           {showGridView && (
             <div
