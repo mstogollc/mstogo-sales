@@ -59,7 +59,7 @@ describe("proposal geography is locked to the selected prospect", () => {
   });
 });
 
-describe("full proposal package (the default print/export output)", () => {
+describe("full proposal package — the original website-build package (default print/export)", () => {
   const body: ProposalBody = {
     businessName: "Gulfport Dental",
     industry: "Dental",
@@ -74,78 +74,122 @@ describe("full proposal package (the default print/export output)", () => {
     expect(fallbackProposal({ ...body, format: "full" })).toBe(fullProposalFallback(body));
   });
 
-  it("contains the full multi-section package content", () => {
+  it("emits every original section, in order", () => {
     const text = fullProposalFallback(body);
-    expect(text).toContain("MS2GO Growth Proposal for Gulfport Dental");
-    expect(text).toMatch(/Where you stand today/i);
-    expect(text).toMatch(/The MS2GO growth system/i);
-    expect(text).toMatch(/Local SEO/i);
-    expect(text).toMatch(/Industry SEO/i);
-    expect(text).toMatch(/AI Search/i);
-    expect(text).toMatch(/Investment/i);
-    expect(text).toMatch(/Goals we'll target/i);
-    expect(text).toMatch(/Next step/i);
+    const order = [
+      "WEBSITE DESIGN & DEVELOPMENT PROPOSAL",
+      "Prepared For",
+      "Prepared By",
+      "Introduction & Thank You",
+      "FAST TRACK",
+      "INTRODUCTORY VALUE",
+      "About MS2GO LLC",
+      "Website Proposal: What We Will Build",
+      "Core Deliverables",
+      "Proposed Page Map",
+      "Industry-Standard Features",
+      "Investment — Your Website Build",
+      "Monthly Service Options",
+      "Online Directory Visibility",
+      "Start Today — The Full Package",
+      "What Is Not Included in the Initial Build",
+      "Project Timeline — One-Week Fast Track",
+      "Why MS2GO",
+      "Next Steps",
+      "Agreement & Acceptance",
+    ];
+    let cursor = -1;
+    for (const heading of order) {
+      const at = text.indexOf(heading);
+      expect(at, `missing or out-of-order: ${heading}`).toBeGreaterThan(cursor);
+      cursor = at;
+    }
   });
 
-  it("lists all three packages at the correct prices and marks the recommended one", () => {
+  it("titles the cover with the prospect's real business name and verified location", () => {
     const text = fullProposalFallback(body);
-    expect(text).toMatch(/Basic — \$300\/month/);
-    expect(text).toMatch(/Growth — \$750\/month/);
-    expect(text).toMatch(/Premium — \$2,000\/month/);
-    // Growth is recommended in this body, so it carries the star marker.
-    expect(text).toMatch(/Growth — \$750\/month  ★ Recommended for you/);
+    expect(text).toMatch(/MS2GO — Marketing Solutions for Local Businesses/);
+    expect(text).toContain("Gulfport Dental");
+    expect(text).toContain("Gulfport, MS");
   });
 
-  it("includes business directories in every package, never as an add-on", () => {
+  it("includes the one-time WEBSITE BUILD cost: $5,000 standard, $2,500 introductory, $1,250 deposit", () => {
     const text = fullProposalFallback(body);
-    expect(text).toMatch(/Business Directories & Listings/i);
-    expect(text).toMatch(/Included in every MS2GO package/i);
-    expect(text).toMatch(/includes business directories & listings management at no extra cost/i);
-    expect(text).not.toMatch(/directories[^\n]*add-?on/i);
+    const invest = text.slice(text.indexOf("Investment — Your Website Build"), text.indexOf("Monthly Service Options"));
+    expect(invest).toMatch(/\$5,000/);
+    expect(invest).toMatch(/\$2,500/);
+    expect(invest).toMatch(/50% deposit \(\$1,250\)/);
+    expect(invest).toMatch(/remaining 50% due at launch/i);
   });
 
-  it("the full-package prompt instructs all three tiers and directories-in-every-package", () => {
+  it("lists all three MONTHLY packages at the correct prices and marks the recommended one", () => {
+    const text = fullProposalFallback(body);
+    const monthly = text.slice(text.indexOf("Monthly Service Options"), text.indexOf("Online Directory Visibility"));
+    expect(monthly).toMatch(/Basic — \$300\/month/);
+    expect(monthly).toMatch(/Growth — \$750\/month/);
+    expect(monthly).toMatch(/Premium — \$2,000\/month/);
+    expect(monthly).toMatch(/Growth — \$750\/month  ★ Recommended for you/);
+  });
+
+  it("has a Proposed Page Map with the customer-journey pages", () => {
+    const text = fullProposalFallback(body);
+    const map = text.slice(text.indexOf("Proposed Page Map"), text.indexOf("Industry-Standard Features"));
+    expect(map).toMatch(/Home/);
+    expect(map).toMatch(/Request a Quote/i);
+    expect(map.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("has all five Industry-Standard Features subsections", () => {
+    const text = fullProposalFallback(body);
+    const features = text.slice(text.indexOf("Industry-Standard Features"), text.indexOf("Investment — Your Website Build"));
+    expect(features).toMatch(/Trust & Credibility/);
+    expect(features).toMatch(/Conversion & Lead Capture/);
+    expect(features).toMatch(/Project & Quote Experience/);
+    expect(features).toMatch(/Local & Industry SEO/);
+    expect(features).toMatch(/Performance & Security/);
+  });
+
+  it("prices the launch-year directory at $2,000 while keeping ongoing visibility included in packages", () => {
+    const text = fullProposalFallback(body);
+    const monthly = text.slice(text.indexOf("Monthly Service Options"), text.indexOf("Online Directory Visibility"));
+    expect(monthly).toMatch(/directory & listings visibility at no extra cost/i);
+    const directory = text.slice(text.indexOf("Online Directory Visibility"), text.indexOf("Start Today"));
+    expect(directory).toMatch(/\$2,000 per year/);
+    expect(directory).toMatch(/included in every monthly package/i);
+  });
+
+  it("has the Start Today math: $4,500 website+directory and $6,500 full package", () => {
+    const text = fullProposalFallback(body);
+    const start = text.slice(text.indexOf("Start Today — The Full Package"), text.indexOf("What Is Not Included"));
+    expect(start).toMatch(/Total to Start Today — \$4,500/);
+    expect(start).toMatch(/Grand Total Day-One Investment \(Full Package\) — \$6,500/);
+    // Day-one alternatives for Growth and Basic are offered too.
+    expect(start).toMatch(/first month Growth/i);
+    expect(start).toMatch(/first month Basic/i);
+  });
+
+  it("the full-package prompt instructs the website build cost, page map, features, and Start Today math", () => {
     const { system, user } = buildProposalPrompt({ ...body, format: "full" });
-    expect(system).toMatch(/multi-section growth proposal package/i);
-    expect(system).toMatch(/Directories are included in every package — never present them as an add-on/i);
+    expect(system).toMatch(/website-build proposal package/i);
+    expect(system).toMatch(/standard build \$5,000, reduced 50% to \$2,500/i);
+    expect(system).toMatch(/50% deposit \(\$1,250\)/);
+    expect(system).toMatch(/Proposed Page Map/);
+    expect(system).toMatch(/Industry-Standard Features — FIVE subsections/i);
+    expect(system).toMatch(/\$4,500 recommended minimum/);
+    expect(system).toMatch(/\$6,500 full package/);
+    expect(system).toMatch(/Directory visibility is included in every package — never present ongoing directories as an add-on/i);
     expect(user).toMatch(/All packages \(list every one in the Investment section\)/i);
     expect(user).toMatch(/Basic — \$300\/month/);
     expect(user).toMatch(/Premium — \$2,000\/month/);
   });
 
-  // Justin's report: the rebuilt proposal lost the detailed website and
-  // cost/investment explanations the original had. The full package must carry
-  // real, multi-line explanations — not a single bullet each.
-  it("has a detailed website explanation section, not a one-liner", () => {
-    const text = fullProposalFallback(body); // Gulfport Dental, has no website set → unknown-website branch
-    expect(text).toMatch(/Your website — what we improve/i);
-    // Multiple concrete website improvements must be explained.
-    expect(text).toMatch(/mobile/i);
-    expect(text).toMatch(/conversion|click-to-call|booking form/i);
-    expect(text).toMatch(/trust signals/i);
-    expect(text).toMatch(/on-page SEO|local SEO/i);
-    // The website section spans several lines, not just a header + one bullet.
-    const websiteBlock = text.slice(text.indexOf("Your website"), text.indexOf("Investment"));
-    expect(websiteBlock.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("has a detailed cost/investment breakdown of what each tier buys", () => {
+  it("has detailed multi-line Core Deliverables, not a one-liner", () => {
     const text = fullProposalFallback(body);
-    const investBlock = text.slice(text.indexOf("Investment"));
-    // Each tier explains, in plain English, what the money buys (sub-bullets).
-    expect(investBlock).toMatch(/Everything in Basic/i);
-    expect(investBlock).toMatch(/Everything in Growth/i);
-    expect(investBlock).toMatch(/month-to-month/i);
-    expect(investBlock).toMatch(/no setup fees|no long-term contract/i);
-    // At least a handful of detail sub-bullets (the "–" lines) across tiers.
-    expect(investBlock.split("\n").filter((l) => l.trim().startsWith("–")).length).toBeGreaterThanOrEqual(8);
-  });
-
-  it("the full-package prompt asks for detailed website and per-tier investment copy", () => {
-    const { system } = buildProposalPrompt({ ...body, format: "full" });
-    expect(system).toMatch(/'Your website' section must be a real explanation/i);
-    expect(system).toMatch(/what that money buys/i);
-    expect(system).toMatch(/month-to-month/i);
+    const core = text.slice(text.indexOf("Core Deliverables"), text.indexOf("Proposed Page Map"));
+    expect(core).toMatch(/mobile-first/i);
+    expect(core).toMatch(/on-page SEO|SEO foundation/i);
+    expect(core).toMatch(/training/i);
+    expect(core.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(6);
   });
 });
 
@@ -195,17 +239,15 @@ describe("no-website handling never invents a URL (both formats)", () => {
     }
   });
 
-  it("the no-website full proposal explains building a first website in detail", () => {
+  it("the no-website full proposal frames building a first website in the Website Proposal section", () => {
     const base: ProposalBody = { businessName: "Coastal Cafe", city: "Gulfport", state: "MS", noWebsite: true };
     const full = fullProposalFallback(base);
-    expect(full).toMatch(/Your website — built from scratch/i);
-    expect(full).toMatch(/first professional website|professional, mobile-first website/i);
-    expect(full).toMatch(/competitor who does/i);
-    expect(full).toMatch(/click-to-call|booking form|convert/i);
-    expect(full).toMatch(/local SEO/i);
-    // Several explanation bullets, not one line — and still no invented URL.
-    const websiteBlock = full.slice(full.indexOf("Your website"), full.indexOf("Investment"));
-    expect(websiteBlock.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(3);
+    expect(full).toMatch(/Website Proposal: What We Will Build/i);
+    expect(full).toMatch(/first professional website/i);
+    expect(full).toMatch(/competitor who has one/i);
+    expect(full).toMatch(/Where you stand today \(no website yet\)/i);
+    // The website-build section names no invented URL.
+    const websiteBlock = full.slice(full.indexOf("Website Proposal"), full.indexOf("Core Deliverables"));
     expect(websiteBlock).not.toMatch(/https?:\/\//);
   });
 
@@ -224,11 +266,22 @@ describe("no-website handling never invents a URL (both formats)", () => {
 
     expect(user).not.toMatch(/staleurl/i);
     expect(user).not.toMatch(/Current website/i);
-    for (const text of [full, intro]) {
-      expect(text).not.toMatch(/staleurl/i);
-      expect(text).toMatch(/first professional website/i);
-      expect(text).not.toMatch(/https?:\/\//);
-    }
+    expect(full).not.toMatch(/staleurl/i);
+    expect(full).toMatch(/first professional website/i);
+    // The intro letter still frames a first website; its "Current website" line is suppressed.
+    expect(intro).not.toMatch(/staleurl/i);
+    expect(intro).not.toMatch(/Current website/i);
+    expect(intro).not.toMatch(/https?:\/\//);
+  });
+
+  it("the full website-build proposal still carries its fixed prices even with no website", () => {
+    const base: ProposalBody = { businessName: "Coastal Cafe", city: "Gulfport", state: "MS", noWebsite: true };
+    const full = fullProposalFallback(base);
+    expect(full).toMatch(/\$5,000/);
+    expect(full).toMatch(/\$2,500/);
+    expect(full).toMatch(/\$1,250/);
+    expect(full).toMatch(/Total to Start Today — \$4,500/);
+    expect(full).toMatch(/\$6,500/);
   });
 });
 
@@ -249,7 +302,7 @@ describe("website address on the proposal", () => {
     expect(introLetterFallback({ ...body, format: "intro" })).toContain("Current website: www.baysidemarine.com");
   });
 
-  it("the full proposal explains, in detail, what it improves on a provided website", () => {
+  it("the full proposal names the provided website inside the Website Proposal section", () => {
     const body: ProposalBody = {
       businessName: "Bayside Marine Outfitters",
       industry: "Marine Outfitter",
@@ -258,15 +311,10 @@ describe("website address on the proposal", () => {
       website: "www.baysidemarine.com",
     };
     const full = fullProposalFallback(body);
-    // The provided URL is named exactly, inside a real explanation section.
-    expect(full).toMatch(/Your website — what we improve/i);
+    // The provided URL is named exactly, inside the real build section.
+    expect(full).toMatch(/Website Proposal: What We Will Build/i);
     expect(full).toContain("www.baysidemarine.com");
-    expect(full).toMatch(/mobile/i);
-    expect(full).toMatch(/conversion|click-to-call|booking form/i);
-    expect(full).toMatch(/trust signals/i);
-    expect(full).toMatch(/on-page SEO|local SEO/i);
-    const websiteBlock = full.slice(full.indexOf("Your website"), full.indexOf("Investment"));
-    expect(websiteBlock.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(3);
+    expect(full).toMatch(/Where you stand today/i);
   });
 
   it("a manual proposal with no website provided names no URL but still builds (both formats)", () => {
@@ -285,7 +333,8 @@ describe("website address on the proposal", () => {
       expect(text).not.toMatch(/Current website/i);
       expect(text).not.toMatch(/https?:\/\//);
     }
-    expect(full).toContain("MS2GO Growth Proposal for Joe's Pizza");
+    expect(full).toContain("Joe's Pizza");
+    expect(full).toMatch(/WEBSITE DESIGN & DEVELOPMENT PROPOSAL/);
     expect(intro).toContain("MS2GO Proposal for Joe's Pizza");
   });
 });
@@ -305,11 +354,9 @@ describe("one-off manual proposals (business card / walk-in, no selected lead)",
     expect(user).toContain("Business: Bayside Marine Outfitters");
     expect(user).toContain("Industry / category: Marine Outfitter");
     expect(user).toContain("Biloxi, MS");
-    expect(full).toContain("MS2GO Growth Proposal for Bayside Marine Outfitters");
+    expect(full).toContain("Bayside Marine Outfitters");
     expect(full).toContain("Biloxi, MS");
-    // The title/intro must use the real business name — never a placeholder. (The
-    // systems copy legitimately says "your business", so only flag placeholders.)
+    // The cover/intro must use the real business name — never a placeholder.
     expect(full).not.toMatch(/Anytown|\[Business\]/i);
-    expect(full.split("\n")[0]).not.toMatch(/your business/i);
   });
 });

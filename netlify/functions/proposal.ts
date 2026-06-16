@@ -1,7 +1,16 @@
 import type { Context } from "@netlify/functions";
 import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
 import { chat } from "./_lib/openai";
-import { MS2GO_BRAND, PROPOSAL_SYSTEMS, recommendPackage, type MS2GOPackage } from "./_lib/brand";
+import {
+  MS2GO_BRAND,
+  PROPOSAL_SYSTEMS,
+  recommendPackage,
+  WEBSITE_BUILD,
+  DIRECTORY_ANNUAL,
+  START_TODAY,
+  usd,
+  type MS2GOPackage,
+} from "./_lib/brand";
 import { currentUser, tryPersist } from "./_lib/supabase";
 import { actorFromUser, logUsage } from "./_lib/usage";
 
@@ -151,36 +160,116 @@ const TIER_DETAIL: Record<MS2GOPackage["tier"], readonly string[]> = {
 };
 
 /**
- * Renders the three MS2GO packages as a detailed "Investment" section, with the
- * recommended tier called out and a plain-English breakdown of what each tier
- * buys. Directories are included in every tier, so the full proposal never
- * positions them as an add-on.
+ * Renders the three monthly MS2GO packages as the "Monthly Service Options"
+ * section, with the recommended tier called out and a plain-English breakdown of
+ * what each tier buys. Directory visibility is included in every tier, so this
+ * section never positions ongoing directory management as an add-on. The one-time
+ * launch-year directory activation is priced separately in "Start Today".
  */
-function investmentSection(recommendedTier: MS2GOPackage["tier"]): string {
+function monthlyServiceSection(recommendedTier: MS2GOPackage["tier"]): string {
   const lines = [
-    "Investment — choose the package that fits your goals",
-    "  Every package is month-to-month and includes business directories & listings management at no extra cost.",
+    "Monthly Service Options — Three Choices",
+    "  Launching the website is step one. To keep growing — earning visibility, reviews, and new",
+    "  quote requests month after month — most successful businesses invest in ongoing monthly support.",
+    "  Pick the level that matches where you want to be a year from now; you can move up or down anytime.",
+    "  Every package is month-to-month and includes business directory & listings visibility at no extra cost.",
     "",
   ];
   for (const pkg of MS2GO_BRAND.packages) {
     const star = pkg.tier === recommendedTier ? "  ★ Recommended for you" : "";
-    lines.push(`  • ${pkg.tier} — $${pkg.price.toLocaleString("en-US")}/${pkg.cadence}${star}`);
+    lines.push(`  • ${pkg.tier} — ${usd(pkg.price)}/${pkg.cadence}${star}`);
     lines.push(`      ${pkg.summary}`);
     for (const detail of TIER_DETAIL[pkg.tier]) {
       lines.push(`        – ${detail}`);
     }
     lines.push("");
   }
-  lines.push("  No setup fees and no long-term contract — you can move up or down a tier as results compound.");
+  lines.push("  No setup fees and no long-term contract — 30 days' notice cancels anytime, every month.");
   return lines.join("\n");
 }
 
 /**
+ * The one-time website BUILD investment section — the piece Justin flagged as
+ * missing from the rebuilt proposal. Standard build $5,000, introductory 50% off
+ * to $2,500, 50% deposit ($1,250) to begin, remaining balance due at launch. This
+ * is hard-coded from WEBSITE_BUILD so the deterministic fallback alone carries the
+ * original package even if the LLM never responds.
+ */
+function investmentSection(): string {
+  return [
+    "Investment — Your Website Build",
+    `  Our standard website build is ${usd(WEBSITE_BUILD.standard)}. As an introductory partnership offer we are`,
+    `  reducing the total investment by 50% to ${usd(WEBSITE_BUILD.introductory)} — so you can launch a real,`,
+    "  professionally-built site and start routing quote requests into the business right away.",
+    "",
+    `  • Website design, development, and launch (all core deliverables) — ${usd(WEBSITE_BUILD.standard)} standard, ${usd(WEBSITE_BUILD.introductory)} introductory`,
+    "  • Content collaboration and copy guidance — Included",
+    "  • Training, handoff, and a written quick-start guide — Included",
+    "  • 30 days of post-launch support for bug fixes — Included",
+    "",
+    `  Total Website Investment (Introductory Offer — 50% Off): ${usd(WEBSITE_BUILD.introductory)}`,
+    `  Payment terms: 50% deposit (${usd(WEBSITE_BUILD.deposit)}) to begin work, with the remaining 50% due at launch.`,
+    "  We accept check, ACH, or credit card.",
+  ].join("\n");
+}
+
+/**
+ * Annual online directory section. Directory *visibility* is included in every
+ * monthly package; this is the one-time-per-year launch buildout/activation that
+ * gets the business listed and standardized across every major directory.
+ */
+function directorySection(): string {
+  return [
+    "Online Directory Visibility — Launch-Year Activation",
+    "  Ongoing directory visibility is included in every monthly package above. Separately, the launch-year",
+    "  directory buildout is the highest-leverage one-time-per-year investment you can make: we place your",
+    "  business across all the major directories — Google Business Profile, Bing Places, Apple Maps, Yelp, BBB,",
+    "  and the major industry-specific directories — with consistent name, address, phone, and service-area data.",
+    "  • Immediate local SEO impact — consistent listings are one of the strongest local ranking signals.",
+    "  • AI Search Optimization — listed and recommended inside AI answers (ChatGPT, Google AI Overviews, Perplexity, Gemini).",
+    "  • Real lead generation — drives phone calls and map-based visits from buyers ready now.",
+    `  Special introductory price: ${usd(DIRECTORY_ANNUAL)} per year — paid once and good for the full year.`,
+  ].join("\n");
+}
+
+/**
+ * "Start Today" — the complete day-one investment math, built from the shared
+ * constants: website ($2,500) + directory ($2,000) = $4,500 recommended minimum,
+ * plus the first month of the recommended Premium package ($2,000) = $6,500 full
+ * package. Day-one alternatives at Growth and Basic are offered too.
+ */
+function startTodaySection(): string {
+  const basic = MS2GO_BRAND.packages.find((p) => p.tier === "Basic")!;
+  const growth = MS2GO_BRAND.packages.find((p) => p.tier === "Growth")!;
+  const premium = MS2GO_BRAND.packages.find((p) => p.tier === "Premium")!;
+  return [
+    "Start Today — The Full Package",
+    "  If you move forward with the website plus the annual directory service today — and add the",
+    "  recommended Premium monthly package — here is the complete day-one investment broken out:",
+    "",
+    `  • Website design, development, and launch (introductory 50% off) — ${usd(WEBSITE_BUILD.introductory)}`,
+    `  • Annual Online Directory Services (launch-year activation) — ${usd(DIRECTORY_ANNUAL)}`,
+    `  • Total to Start Today — ${usd(START_TODAY.websitePlusDirectory)}`,
+    "",
+    `  • Plus first month of recommended Premium Package (optional) — ${usd(premium.price)}`,
+    `  • Grand Total Day-One Investment (Full Package) — ${usd(START_TODAY.fullPackage)}`,
+    "",
+    `  The website plus directory service together (${usd(START_TODAY.websitePlusDirectory)}) is the recommended`,
+    "  minimum to get positioned correctly online. Monthly billing begins on launch day, not at signing —",
+    "  and you can cancel anytime with 30 days' notice. No contract, no handcuffs, ever.",
+    "  Prefer a lighter start? Day-one alternatives:",
+    `    – Website + directory + first month Growth (${usd(growth.price)}/mo) — ${usd(START_TODAY.websitePlusDirectory + growth.price)}`,
+    `    – Website + directory + first month Basic (${usd(basic.price)}/mo) — ${usd(START_TODAY.websitePlusDirectory + basic.price)}`,
+  ].join("\n");
+}
+
+/**
  * The full multi-section MS2GO proposal package — the complete printed proposal a
- * rep walks an owner through. This is the default print/export output. It honors
- * every grounding rule the intro letter does (verified city only, no invented
- * website, real pricing, the prospect's own business name) and never references
- * Huntsville / North Alabama for an out-of-region prospect.
+ * rep walks an owner through, restored to the original Founding Partner structure
+ * (the BKC Homes website-build proposal). This is the default print/export output.
+ * It honors every grounding rule the intro letter does (verified city only, no
+ * invented website, real pricing, the prospect's own business name) and never
+ * references Huntsville / North Alabama for an out-of-region prospect.
  */
 export function fullProposalFallback(body: ProposalBody): string {
   const business = body.businessName || "your business";
@@ -192,11 +281,60 @@ export function fullProposalFallback(body: ProposalBody): string {
   const tier =
     MS2GO_BRAND.packages.find((p) => p.tier === body.recommendedTier) ||
     recommendPackage({ overall: body.overall || "yellow", reviewCount: body.reviewCount });
+  const industryLabel = industry ? `${industry} business` : "local business";
 
-  const intro = industry
-    ? `MS2GO builds and runs the complete growth system for ${industry} businesses in ${place}. This proposal lays out where ${business} stands today, the systems we'll put to work, and the investment to get there.`
-    : `MS2GO builds and runs the complete growth system for local businesses in ${place}. This proposal lays out where ${business} stands today, the systems we'll put to work, and the investment to get there.`;
+  // 1. Cover / Prepared For / Prepared By
+  const cover = [
+    "MS2GO — Marketing Solutions for Local Businesses",
+    "WEBSITE DESIGN & DEVELOPMENT PROPOSAL",
+    "",
+    "Prepared For",
+    `  ${business}${place !== "your local market" ? ` · ${place}` : ""}`,
+    body.contactName ? `  ${body.contactName}${body.contactRole ? `, ${body.contactRole}` : ""}` : null,
+    "",
+    "Prepared By",
+    `  ${rep}, MS2GO LLC`,
+    `  ${repEmail}`,
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
 
+  // 2. Introduction & Thank You
+  const intro = [
+    "Introduction & Thank You",
+    `  Thank you for the opportunity to put this together. This proposal lays out a complete website`,
+    `  build for ${business} — structured to establish credibility, route real quote requests, and give`,
+    `  your ${industryLabel} in ${place} an online presence that finally matches the work you do. Honest`,
+    "  pricing, a fast timeline, and a partner that earns the relationship every month.",
+  ].join("\n");
+
+  // 3. FAST TRACK
+  const fastTrack = [
+    "FAST TRACK",
+    "  We put this project on an accelerated one-week build schedule. From kickoff to a live,",
+    "  public-facing website, the total turnaround is seven days — so your new site is live and",
+    "  capturing search traffic before your competitors' is.",
+  ].join("\n");
+
+  // 4. INTRODUCTORY VALUE
+  const introValue = [
+    "INTRODUCTORY VALUE",
+    `  Our standard website build is priced at ${usd(WEBSITE_BUILD.standard)}. As an introductory partnership`,
+    `  offer, we are reducing the investment by 50% to ${usd(WEBSITE_BUILD.introductory)} — so you can launch`,
+    "  the site, prove the work, and earn the larger relationship before any bigger conversation.",
+  ].join("\n");
+
+  // 5. About MS2GO LLC
+  const about = [
+    "About MS2GO LLC",
+    "  MS2GO is a full-service marketing agency that designs and builds websites that are fast,",
+    "  mobile-first, easy to manage, and built to convert quote requests — for the locally-owned",
+    "  businesses and trades that define their markets. Beyond launch day, we support clients with",
+    "  SEO, paid advertising, social media, and automation so the marketing keeps working long",
+    "  after the site goes live.",
+  ].join("\n");
+
+  // 6. Website Proposal: What We Will Build (+ where-you-stand signals)
   const signalsList =
     body.topSignals && body.topSignals.length > 0
       ? body.topSignals
@@ -205,68 +343,199 @@ export function fullProposalFallback(body: ProposalBody): string {
           .join("\n")
       : "  • Findings to be confirmed on the discovery call.";
 
-  const standingHeader = body.noWebsite ? "Where you stand today (no website yet)" : "Where you stand today";
-  const standingBody = body.noWebsite
+  const websiteBuild = body.noWebsite
     ? [
+        "Website Proposal: What We Will Build",
+        `  You don't have a website yet, and that's the single biggest gap costing you customers — today`,
+        "  every search for your business hands a ready-to-buy customer to a competitor who has one. We",
+        "  will design, develop, and launch your first professional website so that stops. It will reflect",
+        "  your brand, establish credibility, and route quote requests straight to you.",
+        "",
+        "Where you stand today (no website yet)",
         signalsList,
-        "  • You don't have a website yet — every search for your business sends a potential customer to a competitor who does.",
+        "  • Without a website, every search for your business sends a potential customer to a competitor who has one.",
       ].join("\n")
-    : website
-      ? [signalsList, `  • Current website: ${website}`].join("\n")
-      : signalsList;
+    : [
+        "Website Proposal: What We Will Build",
+        website
+          ? `  We will design, develop, and launch a modern, responsive website for ${business} — replacing`
+          : `  We will design, develop, and launch a modern, responsive website for ${business} —`,
+        website
+          ? `  ${website} with a real, professionally-built site that gives your business the online presence it`
+          : "  a real, professionally-built site that gives your business the online presence it",
+        "  deserves. It will reflect your brand, establish credibility through reviews and project history,",
+        "  and clearly position your services so leads route to the right place automatically.",
+        "",
+        "Where you stand today",
+        website ? [signalsList, `  • Current website: ${website}`].join("\n") : signalsList,
+      ].join("\n");
 
-  const systemsHeader = "The MS2GO growth system — what we put to work for you";
-  const systemsBody = PROPOSAL_SYSTEMS.map((s) => `  • ${s.name}\n      ${s.benefit}`).join("\n");
+  // 7. Core Deliverables
+  const coreDeliverables = [
+    "Core Deliverables",
+    "  • Custom Design: a unique, professional visual identity built around your brand — tailored, not templated.",
+    "  • Mobile-First Responsive Build: pixel-perfect rendering on phones, tablets, and desktops.",
+    "  • Fast, SEO-Friendly Code: optimized images, clean markup, fast hosting, Core Web Vitals tuned for Google.",
+    "  • Content Strategy & Copy Guidance: messaging structured to build trust and convert your specific buyers.",
+    "  • On-Page SEO Foundation: keyword-targeted metadata, schema markup, XML sitemap, and a Google Business Profile audit.",
+    "  • Accessibility (WCAG 2.1 AA aware): color contrast, alt text, keyboard navigation, and readable typography.",
+    "  • Secure Hosting Setup: SSL certificate, HTTPS, and an environment configured for uptime and speed.",
+    "  • Analytics & Tracking: Google Analytics 4, Search Console, and conversion tracking on every form and phone click.",
+    "  • CMS: a simple, secure back end so you can update hours, swap photos, and post promotions without touching code.",
+    "  • One Round of Revisions Per Page, plus Training & Handoff: a live walkthrough and a written quick-start guide.",
+  ].join("\n");
 
-  const websiteSection = body.noWebsite
-    ? [
-        "Your website — built from scratch",
-        "  You don't have a website yet, and that's the single biggest gap costing you customers: today every search for your business hands a ready-to-buy customer to a competitor who does have one. We build your first professional website so that stops. Here's what we build for you:",
-        "  • A professional, mobile-first website designed to load fast and look right on every phone — where most of your local searches actually happen.",
-        "  • Built to convert, not just to look pretty: clear calls-to-action, click-to-call, a quote/booking form, and trust signals (reviews, service area, guarantees) so visitors turn into calls and booked jobs.",
-        "  • Service and location pages structured for local SEO from day one, so the site earns rankings instead of just sitting there.",
-        "  • Lead capture wired into your follow-up so every inquiry is answered fast — and we keep refining the site as the data comes in.",
-      ].join("\n")
-    : website
-      ? [
-          "Your website — what we improve",
-          `  Your current site is ${website}. We don't throw it away — we turn it into a lead engine. Here's what we do:`,
-          "  • Speed & mobile: tune load time and the mobile layout so visitors don't bounce before the page loads.",
-          "  • Conversion: add and sharpen calls-to-action, click-to-call, and quote/booking forms so more visitors actually contact you.",
-          "  • Trust signals: surface your reviews, service area, credentials, and guarantees so first-time visitors believe you.",
-          "  • On-page SEO: tighten your service and location pages around the terms your buyers search, then keep refining it over time as we see what converts.",
-        ].join("\n")
-      : [
-          "Your website — what we improve",
-          "  We make your website do real work instead of just existing. Here's what we focus on:",
-          "  • Speed & mobile: faster load times and a clean mobile layout, since most local searches happen on a phone.",
-          "  • Conversion: clear calls-to-action, click-to-call, and quote/booking forms so visitors become calls and booked jobs.",
-          "  • Trust signals: reviews, service area, and guarantees front and center to win first-time visitors.",
-          "  • On-page SEO: service and location pages tuned to the high-intent terms your buyers search — then refined over time.",
-        ].join("\n");
+  // 8. Proposed Page Map
+  const pageMap = [
+    "Proposed Page Map",
+    "  Based on what works for successful businesses in your industry — and what your customers actually",
+    "  search for — we recommend the following page architecture, mirroring the customer journey from",
+    "  research, to trust, to quote request:",
+    "  • Home — hero introduction, primary CTAs (Request a Quote + click-to-call), and trust signals.",
+    "  • About / Meet the Team — your story and credentials, giving the brand a face from day one.",
+    "  • Services — pillar pages for each core service line, each its own SEO ranking opportunity.",
+    "  • Service Area — map and city list for the areas you cover.",
+    "  • Project Gallery — photo-driven proof of work, the single most powerful trust signal.",
+    "  • Reviews & Testimonials — pulled from Google, Facebook, and the directories, collected on-site too.",
+    "  • Request a Quote / Contact — embedded quote-request form, click-to-call, click-to-text, map, and hours.",
+    "  • Legal — privacy policy, terms of use, accessibility statement, and license/insurance information.",
+  ].join("\n");
+
+  // 9. Industry-Standard Features (5 subsections)
+  const industryFeatures = [
+    "Industry-Standard Features",
+    "  Our build incorporates the features your customers expect, and the features Google rewards.",
+    "",
+    "  Trust & Credibility",
+    "    • Owner story and credentials displayed prominently (licensed / insured / bonded where applicable).",
+    "    • Project gallery with real photography — replacing any broken or placeholder images.",
+    "    • Live review feed pulling from Google, Facebook, BBB, and the major directories.",
+    "",
+    "  Conversion & Lead Capture",
+    "    • Click-to-call buttons pinned on mobile, plus click-to-text for fast quote requests.",
+    "    • \"Request a Quote\" CTA above the fold on every page, with a photo-upload field and spam protection.",
+    "    • Properly formatted email addresses and a thank-you page with a tracked conversion event.",
+    "",
+    "  Project & Quote Experience",
+    "    • Online quote-request forms routed to the right person automatically.",
+    "    • FAQ section that reduces phone-call friction (warranty, process, timeline, financing).",
+    "    • Map + directions, hours, and a clear coverage-area list.",
+    "",
+    "  Local & Industry SEO",
+    "    • Optimized for high-intent local terms across your services.",
+    "    • Schema markup (LocalBusiness, Service, FAQ, Review) and NAP consistency across every platform.",
+    "    • Service-area landing pages — each one a separate ranking opportunity.",
+    "",
+    "  Performance & Security",
+    "    • Core Web Vitals optimized (LCP, INP, CLS), image compression, and modern formats (WebP / AVIF).",
+    "    • Backup + restore process, a staging environment, malware scanning, and uptime monitoring.",
+  ].join("\n");
+
+  // 16. Why MS2GO
+  const whyMs2go = [
+    "Why MS2GO",
+    "  • Local focus. We specialize in websites for local businesses and understand what wins the quote.",
+    "  • Conversion-first design. Every section, button, and headline is placed with one goal: a booked quote request.",
+    "  • Human partnership. You work directly with a small team — no call-center support, no ticket queues.",
+    "  • Built to grow. Your site is ready to add SEO content, paid-traffic landing pages, and automation without a rebuild.",
+    "  • Full ownership. You own the domain, hosting, content, and assets. No long-term contract. No handcuffs.",
+  ].join("\n");
+
+  // 17. Next Steps
+  const nextSteps = [
+    "Next Steps",
+    "  1. Review and sign this proposal.",
+    `  2. Submit the 50% deposit (${usd(WEBSITE_BUILD.deposit)}).`,
+    "  3. Schedule the 30-minute kickoff call.",
+    "  4. Provide existing assets (logo, photos, license/insurance docs, service-area preferences).",
+    body.goals ? `  Goals we'll target: ${body.goals}` : null,
+    `  Questions or changes — reach ${rep} directly at ${repEmail}.`,
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+
+  // 18. Agreement & Acceptance / signature block
+  const agreement = [
+    "Agreement & Acceptance",
+    "  By signing below, the client agrees to the scope, pricing, and timeline described in this proposal.",
+    "  This document serves as a working agreement until a more formal contract is executed, if desired.",
+    "",
+    "  CLIENT                                   MS2GO LLC",
+    `  ${business}                              Justin Pearce, Owner, MS2GO LLC`,
+    "  Signature: ______________________        Signature: ______________________",
+    "  Date: ___________________________        Date: ___________________________",
+  ].join("\n");
 
   return [
-    `MS2GO Growth Proposal for ${business}`,
-    `Prepared by ${rep}, MS2GO`,
+    cover,
     "",
     intro,
     "",
-    standingHeader,
-    standingBody,
+    fastTrack,
     "",
-    systemsHeader,
-    systemsBody,
+    introValue,
     "",
-    websiteSection,
+    about,
     "",
-    investmentSection(tier.tier),
+    websiteBuild,
     "",
-    `Goals we'll target${body.goals ? ": " + body.goals : "."}`,
+    coreDeliverables,
     "",
-    "Next step",
-    "  • 30-minute kickoff this week to align scope, success metrics, and your start date.",
+    pageMap,
     "",
-    `Questions or changes — reach me directly at ${repEmail}.`,
+    industryFeatures,
+    "",
+    investmentSection(),
+    "",
+    monthlyServiceSection(tier.tier),
+    "",
+    directorySection(),
+    "",
+    startTodaySection(),
+    "",
+    notIncludedSection(),
+    "",
+    timelineSection(),
+    "",
+    whyMs2go,
+    "",
+    nextSteps,
+    "",
+    agreement,
+  ].join("\n");
+}
+
+/**
+ * "What Is Not Included in the Initial Build" — keeps the introductory fee
+ * transparent. Pinned to the introductory website price.
+ */
+function notIncludedSection(): string {
+  return [
+    "What Is Not Included in the Initial Build",
+    `  To keep the initial investment transparent, the ${usd(WEBSITE_BUILD.introductory)} website fee excludes:`,
+    "  • Domain registration and renewal (handled directly with the registrar, typically $12–$20/year).",
+    "  • Paid software subscriptions (CRMs, scheduling tools, email-marketing platforms, etc.).",
+    "  • Stock photography or professional photo/video shoots on location (highly recommended; quoted separately).",
+    "  • Logo refinement or a new brand mark (quoted separately if desired).",
+    "  • Ongoing monthly services listed above (available as optional add-ons).",
+  ].join("\n");
+}
+
+/**
+ * "Project Timeline — One-Week Fast Track" — the original seven-day schedule.
+ */
+function timelineSection(): string {
+  return [
+    "Project Timeline — One-Week Fast Track",
+    "  Because every day without a real digital presence is a day of quote requests going to competitors,",
+    "  we put this project on an accelerated one-week schedule. From kickoff, the site goes live within seven days.",
+    "  • Day 1 — Kickoff call, brand discovery, asset collection, domain/hosting planning, content questionnaire.",
+    "  • Day 2 — Homepage design concept finalized; sitemap confirmed; copy drafting begins.",
+    "  • Days 3–4 — Full design and build of all pages; schema markup, forms, SEO foundation, analytics implemented.",
+    "  • Day 5 — Internal QA across mobile, tablet, and desktop; staging preview sent for your review.",
+    "  • Day 6 — Your feedback applied (one consolidated round of revisions); final QA and accessibility pass.",
+    "  • Day 7 — Launch day. Site goes live, Google Business Profile linked, training call and quick-start guide delivered.",
+    "  Total time from kickoff to launch: 7 days (assumes same-day feedback when reviews are requested).",
   ].join("\n");
 }
 
@@ -295,23 +564,50 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
   const website = body.noWebsite ? undefined : clean(body.website);
   const isIntro = body.format === "intro";
 
+  const monthlyList = MS2GO_BRAND.packages
+    .map((p) => `${p.tier} ${usd(p.price)}/mo`)
+    .join(", ");
+  const growthSystemList = PROPOSAL_SYSTEMS.map((s) => s.name).join("; ");
+
   const structure = isIntro
     ? "You are an MS2GO sales strategist writing a short one-page introductory letter. Structure it as: title, " +
       "'Where you stand today', 'What we'll do', 'Investment', 'Goals', and 'Next step'. Keep it under 350 words. "
-    : "You are an MS2GO sales strategist writing a complete, multi-section growth proposal package. Structure it as: " +
-      "title, a short intro paragraph, 'Where you stand today', 'The MS2GO growth system' (cover Local SEO & the " +
-      "Google Map Pack, Industry SEO & website content, Business Directories & Listings — included in every package, " +
-      "Paid Ads & Google Local Services Ads, AI Search Optimization, Reviews & Reputation, and Follow-Up & Speed-to-Lead), " +
-      "a detailed 'Your website' section, a detailed 'Investment' section, 'Goals', and 'Next step'.\n" +
-      "The 'Your website' section must be a real explanation, not one line: explain in plain English what MS2GO does to " +
-      "the site (speed, mobile-first layout, conversion elements like click-to-call and quote/booking forms, trust " +
-      "signals, on-page local SEO) and why it matters to the owner. If the prospect has no website, frame it as building " +
-      "their first professional website and explain why not having one loses customers to competitors.\n" +
-      "The 'Investment' section must list ALL three packages (Basic $300/mo, Growth $750/mo, Premium $2,000/mo), mark the " +
-      "recommended one, and under each tier spell out in plain English what that money buys and what each higher tier " +
-      "adds over the one below it. State that every package is month-to-month with no setup fees. " +
-      "Directories are included in every package — never present them as an add-on. " +
-      "Aim for one to two pages (roughly 600-900 words). ";
+    : "You are an MS2GO sales strategist writing the complete, multi-section MS2GO website-build proposal package — " +
+      "the original Founding Partner proposal. It is a WEBSITE BUILD proposal with monthly options, not a monthly-only " +
+      "plan. Use EXACTLY this section order, each as its own headed section:\n" +
+      "1. Cover — 'MS2GO — Marketing Solutions for Local Businesses', 'WEBSITE DESIGN & DEVELOPMENT PROPOSAL', " +
+      "Prepared For (business + contact), Prepared By (rep + MS2GO LLC + email).\n" +
+      "2. Introduction & Thank You — a warm, specific paragraph.\n" +
+      "3. FAST TRACK — accelerated one-week (seven-day) build callout.\n" +
+      `4. INTRODUCTORY VALUE — standard build ${usd(WEBSITE_BUILD.standard)}, reduced 50% to ${usd(WEBSITE_BUILD.introductory)}.\n` +
+      "5. About MS2GO LLC.\n" +
+      "6. Website Proposal: What We Will Build — a real, multi-paragraph explanation of the site you'll build (or rebuild), " +
+      "plus a short 'Where you stand today' read. If the prospect has no website, frame it as building their first " +
+      "professional website and explain why not having one loses customers to competitors.\n" +
+      "7. Core Deliverables — custom design, mobile-first build, fast SEO-friendly code, content/copy guidance, on-page SEO " +
+      "foundation, accessibility, secure hosting, analytics & tracking, CMS, revisions, training & handoff.\n" +
+      "8. Proposed Page Map — recommended page architecture (Home, About, Services, Service Area, Gallery, Reviews, " +
+      "Request a Quote / Contact, Legal), each with a one-line purpose.\n" +
+      "9. Industry-Standard Features — FIVE subsections, in this order: 'Trust & Credibility', 'Conversion & Lead Capture', " +
+      "'Project & Quote Experience', 'Local & Industry SEO', 'Performance & Security'.\n" +
+      `10. Investment — the one-time WEBSITE BUILD cost: standard ${usd(WEBSITE_BUILD.standard)}, introductory ${usd(WEBSITE_BUILD.introductory)} ` +
+      `(50% off). Payment terms: 50% deposit (${usd(WEBSITE_BUILD.deposit)}) to begin, remaining 50% due at launch. ` +
+      "This website build cost is REQUIRED and must appear — it is the piece prior drafts were missing.\n" +
+      `11. Monthly Service Options — list ALL three monthly packages (${monthlyList}), mark the recommended one, and under each ` +
+      "spell out in plain English what that money buys. Month-to-month, no setup fees, cancel anytime with 30 days' notice. " +
+      "Directory visibility is included in every package — never present ongoing directories as an add-on.\n" +
+      `12. Online Directory Visibility — the launch-year directory buildout/activation at ${usd(DIRECTORY_ANNUAL)}/year ` +
+      "(one-time-per-year). Ongoing visibility stays included in the monthly packages; this is the launch activation only.\n" +
+      `13. Start Today — the day-one math: website ${usd(WEBSITE_BUILD.introductory)} + directory ${usd(DIRECTORY_ANNUAL)} = ` +
+      `${usd(START_TODAY.websitePlusDirectory)} recommended minimum; plus first month of Premium (${usd(START_TODAY.premiumFirstMonth)}) = ` +
+      `${usd(START_TODAY.fullPackage)} full package. Offer Growth and Basic day-one alternatives too.\n` +
+      `14. What Is Not Included in the Initial Build — keep the ${usd(WEBSITE_BUILD.introductory)} fee transparent.\n` +
+      "15. Project Timeline — One-Week Fast Track (Day 1 through Day 7).\n" +
+      "16. Why MS2GO.\n" +
+      "17. Next Steps — review & sign, submit the deposit, schedule kickoff, provide assets.\n" +
+      "18. Agreement & Acceptance — a signature block for the client and 'Justin Pearce, Owner, MS2GO LLC'.\n" +
+      "Where it helps, you may reference the MS2GO growth systems (" + growthSystemList + ") inside the relevant sections. " +
+      "Aim for two to four pages. Every dollar figure above is fixed — do not change any price. ";
 
   const system =
     structure +
@@ -399,7 +695,7 @@ export default async (req: Request, _ctx: Context) => {
       { role: "system", content: system },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.55, maxTokens: format === "intro" ? 900 : 1600 },
+    { temperature: 0.55, maxTokens: format === "intro" ? 900 : 3200 },
     () => fallbackProposal(body),
   );
 
