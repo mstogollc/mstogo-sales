@@ -31,6 +31,44 @@ export const MS2GO_BRAND = {
 export type MS2GOPackage = (typeof MS2GO_BRAND.packages)[number];
 
 /**
+ * One-time website build pricing — the piece Justin flagged as missing from the
+ * rebuilt proposal. Standard build is $5,000; the introductory partnership offer
+ * is 50% off to $2,500, taken as a 50% deposit ($1,250) to begin with the
+ * remaining balance due at launch. These are the original BKC Homes Founding
+ * Partner numbers and must appear in BOTH the deterministic fallback and the LLM
+ * prompt so a missing model response still produces the original package.
+ */
+export const WEBSITE_BUILD = {
+  standard: 5000,
+  introductory: 2500,
+  deposit: 1250,
+} as const;
+
+/**
+ * Annual online directory buildout/activation. Directory *visibility* is included
+ * in every monthly package; this $2,000/yr line is the launch-year directory
+ * activation across all major directories (Google, Bing, Apple Maps, Yelp, BBB,
+ * and industry-specific sites), positioned as a one-time-per-year add-on in the
+ * "Start Today" math — not a contradiction of "directories in every package".
+ */
+export const DIRECTORY_ANNUAL = 2000;
+
+/**
+ * "Start Today" day-one math, derived from the constants above:
+ *   website ($2,500) + directory ($2,000) = $4,500 recommended minimum
+ *   + first month Premium ($2,000) = $6,500 full package
+ */
+export const START_TODAY = {
+  websitePlusDirectory: WEBSITE_BUILD.introductory + DIRECTORY_ANNUAL, // 4500
+  premiumFirstMonth: 2000,
+  fullPackage: WEBSITE_BUILD.introductory + DIRECTORY_ANNUAL + 2000, // 6500
+} as const;
+
+export function usd(amount: number): string {
+  return `$${amount.toLocaleString("en-US")}`;
+}
+
+/**
  * The growth systems that make up the full MS2GO proposal package. These are the
  * sales-facing sections a printed proposal walks the owner through — what MS2GO
  * actually builds and runs. Every package includes business directories &
