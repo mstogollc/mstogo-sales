@@ -2,9 +2,27 @@ import { useMemo, useState, type FC } from "react";
 import { api, type HeatMapResponse, type HeatCell } from "../api";
 import { useActiveProspect } from "../lib/prospect";
 import { HeatMapView } from "./HeatMapView";
-import { LEVEL_COLOR, LEVEL_COPY, LEVEL_ORDER, markerLabel, pointLabel, pointTitle, toMapPoints } from "../lib/heatMap";
+import {
+  LEVEL_COLOR,
+  LEVEL_COPY,
+  LEVEL_ORDER,
+  markerLabel,
+  markerTextColor,
+  pointLabel,
+  pointTitle,
+  toMapPoints,
+} from "../lib/heatMap";
+import type { HeatLevel } from "../api";
 
 const GRID_OPTIONS = [3, 5, 7] as const;
+
+/** A representative marker label for each level, shown in the legend. */
+const LEGEND_SAMPLE: Record<HeatLevel, string> = {
+  green: "1",
+  blue: "5",
+  yellow: "12",
+  red: "NF",
+};
 
 function cellLabel(cell: HeatCell): string {
   return pointLabel(cell.rank);
@@ -235,11 +253,26 @@ export const MapPackHeatMap: FC = () => {
             {LEVEL_ORDER.map((level) => (
               <span key={level}>
                 <i
-                  className="heat-pin heat-pin-legend"
-                  style={{ background: LEVEL_COLOR[level] }}
+                  className="heat-pin-legend"
                   aria-hidden="true"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxSizing: "border-box",
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background: LEVEL_COLOR[level],
+                    border: "4px solid #ffffff",
+                    boxShadow: "0 0 0 2px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.4)",
+                    color: markerTextColor(level),
+                    fontWeight: 800,
+                    fontSize: LEGEND_SAMPLE[level].length >= 2 ? 15 : 18,
+                    lineHeight: 1,
+                  }}
                 >
-                  {level === "red" ? "NF" : ""}
+                  {LEGEND_SAMPLE[level]}
                 </i>{" "}
                 {LEVEL_COPY[level].label} · {LEVEL_COPY[level].range}
               </span>
