@@ -34,12 +34,18 @@ declare global {
   }
 }
 
-/** Marker diameter in px: large on desktop, a touch smaller on phones. */
+/**
+ * Marker diameter in px. Small enough that the streets and labels around each
+ * point stay visible, but still clearly colored and labeled.
+ */
+export const MARKER_SIZE_DESKTOP = 26;
+export const MARKER_SIZE_MOBILE = 22;
+
 function markerSize(): number {
   if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 560px)").matches) {
-    return 36;
+    return MARKER_SIZE_MOBILE;
   }
-  return 48;
+  return MARKER_SIZE_DESKTOP;
 }
 
 function escapeHtml(value: string): string {
@@ -147,7 +153,7 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
       // regardless of stylesheet load order or Leaflet's own div-icon CSS.
       const fill = LEVEL_COLOR[p.level];
       const text = markerTextColor(p.level);
-      const fontSize = p.marker.length >= 2 ? Math.round(size * 0.38) : Math.round(size * 0.46);
+      const fontSize = p.marker.length >= 2 ? Math.round(size * 0.42) : Math.round(size * 0.52);
       const style = [
         "display:flex",
         "align-items:center",
@@ -157,8 +163,8 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
         `height:${size}px`,
         "border-radius:50%",
         `background:${fill}`,
-        "border:4px solid #ffffff",
-        "box-shadow:0 0 0 2px rgba(0,0,0,0.55), 0 3px 8px rgba(0,0,0,0.5)",
+        "border:2.5px solid #ffffff",
+        "box-shadow:0 0 0 1.5px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.45)",
         `color:${text}`,
         "font-family:inherit",
         "font-weight:800",

@@ -705,6 +705,18 @@ pre.preview {
   margin: 4px 0 14px;
 }
 
+/* The map heading is a print-only label; the on-screen view already has its own
+   section heading, so keep it out of the live UI. */
+.heatmap-print-map-heading {
+  display: none;
+}
+
+.heatmap-print-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ms2go-gray-700);
+}
+
 .heatmap-map {
   width: 100%;
   height: 460px;
@@ -1079,7 +1091,9 @@ pre.preview {
   }
 
   .print-document,
-  .print-document * {
+  .print-document *,
+  .heatmap-printable-map,
+  .heatmap-printable-map * {
     visibility: visible;
   }
 
@@ -1109,6 +1123,71 @@ pre.preview {
   /* Reveal the heat-map print report (hidden on screen) and force its colors. */
   .heatmap-print {
     display: block;
+  }
+
+  /* ---- Print the actual road map ----
+     The interactive Leaflet map lives on screen (inside .card, which is hidden
+     in print). Pull it into the printed flow at a fixed size so the road map,
+     its tiles and the colored markers all appear above the summary/table. */
+  .heatmap-printable-map {
+    display: block;
+    position: static;
+    margin: 0 0 14px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .heatmap-print-map-heading {
+    display: block;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ms2go-navy);
+    margin: 0 0 6px;
+  }
+
+  .heatmap-printable-map .heatmap-map {
+    width: 100%;
+    height: 3.6in;
+    border: 1px solid var(--ms2go-gray-200);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /* Make sure every Leaflet layer (tiles, markers, tooltips) renders to paper. */
+  .heatmap-printable-map .leaflet-pane,
+  .heatmap-printable-map .leaflet-tile,
+  .heatmap-printable-map .leaflet-marker-pane,
+  .heatmap-printable-map .leaflet-tile-pane,
+  .heatmap-printable-map img,
+  .heatmap-printable-map .heat-pin-icon span {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* The map carries its own large markers; the screen caption is redundant in
+     print (the legend + table below explain the colors). */
+  .heatmap-printable-map .heatmap-map-caption {
+    display: none;
+  }
+
+  /* Drop the on-screen-only chrome from the printed page so it flows as:
+     map -> print report (which has its own metrics, legend and table).
+     This removes the blank gaps that hidden-but-laid-out boxes would leave. */
+  .card > h2,
+  .card > .subtitle,
+  .card > .row,
+  .card > .divider,
+  .card > .notice,
+  .card .heatmap-summary,
+  .card > .heatmap-readout,
+  .card .heatmap-legend,
+  .card .heatmap-grid,
+  .card .heatmap-talkpoints,
+  .card .heatmap-empty {
+    display: none !important;
   }
 
   .heat-swatch,
