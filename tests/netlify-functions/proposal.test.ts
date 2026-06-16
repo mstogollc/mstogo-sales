@@ -149,20 +149,43 @@ describe("full proposal package — the original website-build package (default 
     expect(features).toMatch(/Performance & Security/);
   });
 
-  it("prices the launch-year directory at $2,000 while keeping ongoing visibility included in packages", () => {
+  it("includes directory visibility in all three packages with no separate directory charge", () => {
     const text = fullProposalFallback(body);
     const monthly = text.slice(text.indexOf("Monthly Service Options"), text.indexOf("Online Directory Visibility"));
     expect(monthly).toMatch(/directory & listings visibility at no extra cost/i);
     const directory = text.slice(text.indexOf("Online Directory Visibility"), text.indexOf("Start Today"));
-    expect(directory).toMatch(/\$2,000 per year/);
-    expect(directory).toMatch(/included in every monthly package/i);
+    // Directories are included in every package — Basic, Growth, and Premium.
+    expect(directory).toMatch(/included in every MS2GO package/i);
+    expect(directory).toMatch(/Basic, Growth, and Premium/);
+    // No separate one-time / annual directory fee anywhere in the directory section.
+    expect(directory).not.toMatch(/\$2,000 per year/);
+    expect(directory).not.toMatch(/launch-year|activation|buildout/i);
+    expect(directory).not.toMatch(/\$2,000/);
   });
 
-  it("has the Start Today math: $4,500 website+directory and $6,500 full package", () => {
+  it("never charges a separate $2,000 one-time/annual directory fee anywhere in the proposal", () => {
+    const text = fullProposalFallback(body);
+    // The only legitimate $2,000 figures are the Premium monthly package price.
+    expect(text).not.toMatch(/directory.{0,40}\$2,000/i);
+    expect(text).not.toMatch(/\$2,000.{0,40}director/i);
+    expect(text).not.toMatch(/Annual Online Directory/i);
+    expect(text).not.toMatch(/directory.{0,30}(per year|one-time|activation|buildout)/i);
+  });
+
+  it("has the Start Today math: website $2,500 + first month Premium $2,000 = $4,500, no directory line", () => {
     const text = fullProposalFallback(body);
     const start = text.slice(text.indexOf("Start Today — The Full Package"), text.indexOf("What Is Not Included"));
     expect(start).toMatch(/Total to Start Today — \$4,500/);
-    expect(start).toMatch(/Grand Total Day-One Investment \(Full Package\) — \$6,500/);
+    // No separate directory line item or charge, and no old $6,500 grand total.
+    // (The copy may reassure that directories are included — it just must not
+    // price them as a separate day-one line.)
+    expect(start).not.toMatch(/director\w*.{0,40}\$[\d,]+/i);
+    expect(start).not.toMatch(/\$[\d,]+.{0,20}director/i);
+    expect(start).not.toMatch(/Annual Online Directory/i);
+    expect(start).not.toMatch(/\$6,500/);
+    // The deposit logic for the website build is shown.
+    expect(start).toMatch(/50% deposit \(\$1,250\)/);
+    expect(start).toMatch(/\$1,250 is due at launch/i);
     // Day-one alternatives for Growth and Basic are offered too.
     expect(start).toMatch(/first month Growth/i);
     expect(start).toMatch(/first month Basic/i);
@@ -175,9 +198,12 @@ describe("full proposal package — the original website-build package (default 
     expect(system).toMatch(/50% deposit \(\$1,250\)/);
     expect(system).toMatch(/Proposed Page Map/);
     expect(system).toMatch(/Industry-Standard Features — FIVE subsections/i);
-    expect(system).toMatch(/\$4,500 recommended minimum/);
-    expect(system).toMatch(/\$6,500 full package/);
-    expect(system).toMatch(/Directory visibility is included in every package — never present ongoing directories as an add-on/i);
+    // Start Today math: website + first month Premium = $4,500, no directory line.
+    expect(system).toMatch(/\$4,500 to start today/i);
+    expect(system).toMatch(/NO separate directory line item/i);
+    expect(system).not.toMatch(/\$6,500/);
+    expect(system).toMatch(/included in Basic, Growth, and Premium/i);
+    expect(system).toMatch(/Directory visibility is included in every package — never present directories as an add-on or a separate charge/i);
     expect(user).toMatch(/All packages \(list every one in the Investment section\)/i);
     expect(user).toMatch(/Basic — \$300\/month/);
     expect(user).toMatch(/Premium — \$2,000\/month/);
@@ -281,7 +307,8 @@ describe("no-website handling never invents a URL (both formats)", () => {
     expect(full).toMatch(/\$2,500/);
     expect(full).toMatch(/\$1,250/);
     expect(full).toMatch(/Total to Start Today — \$4,500/);
-    expect(full).toMatch(/\$6,500/);
+    // The old $6,500 directory-inclusive grand total is gone.
+    expect(full).not.toMatch(/\$6,500/);
   });
 });
 
