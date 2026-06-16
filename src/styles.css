@@ -778,11 +778,39 @@ pre.preview {
   gap: 6px;
 }
 
-.heat-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 4px;
-  display: inline-block;
+/* Map ranking marker: large, high-contrast pin with the rank (or NF) inside. */
+.heat-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(10, 31, 68, 0.45);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Leaflet's divIcon wrapper has no default styling we need; center the pin. */
+.heat-pin-wrap {
+  background: transparent;
+  border: 0;
+}
+
+/* Smaller pin used inline in the on-screen legend. */
+.heat-pin-legend {
+  width: 26px;
+  height: 26px;
+  border-width: 2px;
+  font-size: 11px;
+  box-shadow: 0 1px 3px rgba(10, 31, 68, 0.35);
 }
 
 .heatmap-cell {
@@ -878,6 +906,137 @@ pre.preview {
   line-height: 1.55;
 }
 
+/* The heat-map print report is built only for the printed page; keep it out of
+   the on-screen view (the interactive map + grid already show the same data). */
+.heatmap-print {
+  display: none;
+}
+
+.heatmap-print-head {
+  margin-bottom: 14px;
+}
+
+.heatmap-print-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ms2go-navy);
+  margin: 0 0 6px;
+}
+
+.heatmap-print-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 12px;
+  color: var(--ms2go-gray-700);
+  margin: 0;
+}
+
+.heatmap-print-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.heatmap-print-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--ms2go-gray-200);
+  border-radius: 8px;
+  min-width: 120px;
+}
+
+.heatmap-print-stat-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ms2go-navy);
+}
+
+.heatmap-print-stat-label {
+  font-size: 11px;
+  color: var(--ms2go-gray-500);
+}
+
+.heatmap-print-readout {
+  font-size: 13px;
+  color: var(--ms2go-gray-700);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.heatmap-print-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 12px;
+  color: var(--ms2go-gray-700);
+  margin-bottom: 14px;
+}
+
+.heatmap-print-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heat-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(10, 31, 68, 0.2);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.heatmap-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+
+.heatmap-print-table th,
+.heatmap-print-table td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--ms2go-gray-200);
+}
+
+.heatmap-print-table th {
+  font-weight: 700;
+  color: var(--ms2go-navy);
+  border-bottom: 2px solid var(--ms2go-navy);
+}
+
+.heatmap-print-talkpoints {
+  margin-top: 8px;
+}
+
+.heatmap-print-talkpoints-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ms2go-navy);
+  margin: 0 0 6px;
+}
+
+.heatmap-print-talkpoints ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.heatmap-print-talkpoints li {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ms2go-gray-700);
+  margin-bottom: 4px;
+}
+
 /* Printable document letterhead (proposals + notes) */
 .print-letterhead {
   display: flex;
@@ -951,6 +1110,46 @@ pre.preview {
     padding: 0;
     box-shadow: none;
     border: 0;
+  }
+
+  /* Reveal the heat-map print report (hidden on screen) and force its colors. */
+  .heatmap-print {
+    display: block;
+  }
+
+  .heat-swatch,
+  .heat-pin,
+  .heatmap-print-stats > div {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .heatmap-print-stats {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .heatmap-print-legend {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .heatmap-print-table {
+    break-inside: auto;
+  }
+
+  .heatmap-print-table thead {
+    display: table-header-group;
+  }
+
+  .heatmap-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .heatmap-print-talkpoints {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   /* Collapse layout containers so the document starts at the top-left of the

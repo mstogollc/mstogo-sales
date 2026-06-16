@@ -2,7 +2,7 @@ import { useMemo, useState, type FC } from "react";
 import { api, type HeatMapResponse, type HeatCell } from "../api";
 import { useActiveProspect } from "../lib/prospect";
 import { HeatMapView } from "./HeatMapView";
-import { LEVEL_COPY, LEVEL_ORDER, pointLabel, pointTitle, toMapPoints } from "../lib/heatMap";
+import { LEVEL_COLOR, LEVEL_COPY, LEVEL_ORDER, markerLabel, pointLabel, pointTitle, toMapPoints } from "../lib/heatMap";
 
 const GRID_OPTIONS = [3, 5, 7] as const;
 
@@ -65,6 +65,15 @@ export const MapPackHeatMap: FC = () => {
   const hasResult = result?.status === "ok" && result.cells.length > 0;
   const showSetup = result != null && SETUP_STATES.has(result.status);
   const mapPoints = useMemo(() => (hasResult ? toMapPoints(result.cells) : []), [hasResult, result]);
+  const locationLine = [city.trim(), state.trim()].filter(Boolean).join(", ");
+  const printedAt = useMemo(
+    () =>
+      new Date().toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    [result],
+  );
 
   return (
     <section className="card">
@@ -225,14 +234,24 @@ export const MapPackHeatMap: FC = () => {
           <div className="heatmap-legend">
             {LEVEL_ORDER.map((level) => (
               <span key={level}>
-                <i className={`heat-dot heat-${level}`} /> {LEVEL_COPY[level].label} · {LEVEL_COPY[level].range}
+                <i
+                  className="heat-pin heat-pin-legend"
+                  style={{ background: LEVEL_COLOR[level] }}
+                  aria-hidden="true"
+                >
+                  {level === "red" ? "NF" : ""}
+                </i>{" "}
+                {LEVEL_COPY[level].label} · {LEVEL_COPY[level].range}
               </span>
             ))}
           </div>
 
-          <div className="heatmap-view-toggle">
+          <div className="heatmap-view-toggle no-print">
             <button type="button" className="ghost" onClick={() => setShowGridView((v) => !v)}>
               {showGridView ? "Hide grid view" : "Show grid view"}
+            </button>
+            <button type="button" className="primary" onClick={() => window.print()}>
+              Print heat map / Save as PDF
             </button>
           </div>
 
@@ -263,6 +282,105 @@ export const MapPackHeatMap: FC = () => {
               </ul>
             </div>
           )}
+
+          <div className="print-document heatmap-print">
+            <div className="print-letterhead">
+              <span className="print-brand">MS2GO</span>
+              <span className="print-brand-sub">Local Ranking Heat Map</span>
+            </div>
+
+            <div className="heatmap-print-head">
+              <h1 className="heatmap-print-title">{businessName.trim() || "Local Ranking Heat Map"}</h1>
+              <p className="heatmap-print-meta">
+                {keyword.trim() && (
+                  <span>
+                    Search term: <strong>{keyword.trim()}</strong>
+                  </span>
+                )}
+                {locationLine && (
+                  <span>
+                    Area: <strong>{locationLine}</strong>
+                  </span>
+                )}
+                {competitor.trim() && (
+                  <span>
+                    Compared to: <strong>{competitor.trim()}</strong>
+                  </span>
+                )}
+                <span>Prepared: {printedAt}</span>
+              </p>
+            </div>
+
+            <div className="heatmap-print-stats">
+              <div>
+                <span className="heatmap-print-stat-value">{result.averageRank ?? "—"}</span>
+                <span className="heatmap-print-stat-label">average rank</span>
+              </div>
+              <div>
+                <span className="heatmap-print-stat-value">{result.bestRank ? `#${result.bestRank}` : "—"}</span>
+                <span className="heatmap-print-stat-label">best rank</span>
+              </div>
+              <div>
+                <span className="heatmap-print-stat-value">{result.worstRank ? `#${result.worstRank}` : "—"}</span>
+                <span className="heatmap-print-stat-label">worst rank</span>
+              </div>
+              <div>
+                <span className="heatmap-print-stat-value">{result.topThreeShare}%</span>
+                <span className="heatmap-print-stat-label">area in top 3</span>
+              </div>
+              <div>
+                <span className="heatmap-print-stat-value">{result.topTenShare}%</span>
+                <span className="heatmap-print-stat-label">area in top 10</span>
+              </div>
+              <div>
+                <span className="heatmap-print-stat-value">{result.weakZoneShare}%</span>
+                <span className="heatmap-print-stat-label">weak / opportunity zones</span>
+              </div>
+            </div>
+
+            <p className="heatmap-print-readout">{result.message}</p>
+
+            <div className="heatmap-print-legend">
+              {LEVEL_ORDER.map((level) => (
+                <span key={level}>
+                  <i className="heat-swatch" style={{ background: LEVEL_COLOR[level] }} aria-hidden="true" />
+                  {LEVEL_COPY[level].label} · {LEVEL_COPY[level].range}
+                </span>
+              ))}
+            </div>
+
+            <table className="heatmap-print-table">
+              <thead>
+                <tr>
+                  <th>Spot</th>
+                  <th>Rank</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.cells.map((cell) => (
+                  <tr key={`${cell.row}-${cell.col}`}>
+                    <td>
+                      Row {cell.row + 1}, Col {cell.col + 1}
+                    </td>
+                    <td>{markerLabel(cell.rank)}</td>
+                    <td>{LEVEL_COPY[cell.level].label}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {result.talkingPoints.length > 0 && (
+              <div className="heatmap-print-talkpoints">
+                <p className="heatmap-print-talkpoints-title">What to tell the prospect</p>
+                <ul>
+                  {result.talkingPoints.map((point, i) => (
+                    <li key={i}>{point}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </>
       )}
     </section>

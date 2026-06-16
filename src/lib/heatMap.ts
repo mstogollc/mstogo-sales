@@ -40,6 +40,7 @@ export interface MapPoint {
   rank: number | null;
   level: HeatLevel;
   label: string;
+  marker: string;
   title: string;
 }
 
@@ -58,6 +59,15 @@ function hasValidCoords(cell: HeatCell): boolean {
 /** Short label shown on/next to a dot. Unranked spots read as a dash. */
 export function pointLabel(rank: number | null | undefined): string {
   if (rank == null || rank <= 0) return "—";
+  return String(rank);
+}
+
+/**
+ * Text shown inside a map marker. A real rank prints its number; an unranked
+ * spot prints "NF" (not found) so the red marker still reads clearly at a glance.
+ */
+export function markerLabel(rank: number | null | undefined): string {
+  if (rank == null || rank <= 0) return "NF";
   return String(rank);
 }
 
@@ -87,6 +97,7 @@ export function toMapPoints(cells: HeatCell[] | null | undefined): MapPoint[] {
       rank: cell.rank,
       level,
       label: pointLabel(cell.rank),
+      marker: markerLabel(cell.rank),
       title: pointTitle(cell.rank),
     };
   });

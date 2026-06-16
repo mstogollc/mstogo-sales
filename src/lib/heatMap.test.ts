@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { HeatCell } from "../api";
 import {
   boundsOf,
+  markerLabel,
   pointLabel,
   pointTitle,
   rankToLevel,
@@ -54,6 +55,18 @@ describe("pointLabel / pointTitle", () => {
   });
 });
 
+describe("markerLabel", () => {
+  it("shows the rank number for ranked points", () => {
+    expect(markerLabel(1)).toBe("1");
+    expect(markerLabel(12)).toBe("12");
+  });
+  it("shows NF for unranked / not-found points", () => {
+    expect(markerLabel(null)).toBe("NF");
+    expect(markerLabel(0)).toBe("NF");
+    expect(markerLabel(undefined)).toBe("NF");
+  });
+});
+
 describe("toMapPoints", () => {
   it("keeps only cells with valid coordinates", () => {
     const cells: HeatCell[] = [
@@ -86,10 +99,16 @@ describe("toMapPoints", () => {
     expect(points[0].level).toBe("green");
   });
 
-  it("carries a label and title for each point", () => {
+  it("carries a label, marker text and title for each point", () => {
     const points = toMapPoints([cell({ rank: null, lat: 34.7, lng: -86.6 })]);
     expect(points[0].label).toBe("—");
+    expect(points[0].marker).toBe("NF");
     expect(points[0].title.toLowerCase()).toContain("invisible");
+  });
+
+  it("carries the rank number as marker text for ranked points", () => {
+    const points = toMapPoints([cell({ rank: 6, lat: 34.7, lng: -86.6 })]);
+    expect(points[0].marker).toBe("6");
   });
 });
 
