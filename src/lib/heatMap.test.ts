@@ -3,6 +3,7 @@ import type { HeatCell } from "../api";
 import {
   boundsOf,
   markerLabel,
+  markerTextColor,
   pointLabel,
   pointTitle,
   rankToLevel,
@@ -64,6 +65,17 @@ describe("markerLabel", () => {
     expect(markerLabel(null)).toBe("NF");
     expect(markerLabel(0)).toBe("NF");
     expect(markerLabel(undefined)).toBe("NF");
+  });
+});
+
+describe("markerTextColor", () => {
+  it("uses dark text on the light yellow fill for contrast", () => {
+    expect(markerTextColor("yellow")).toBe("#1a1a1a");
+  });
+  it("uses white text on the darker green/blue/red fills", () => {
+    expect(markerTextColor("green")).toBe("#ffffff");
+    expect(markerTextColor("blue")).toBe("#ffffff");
+    expect(markerTextColor("red")).toBe("#ffffff");
   });
 });
 

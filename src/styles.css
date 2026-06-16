@@ -766,51 +766,40 @@ pre.preview {
 .heatmap-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-top: 14px;
-  font-size: 13px;
+  gap: 14px 20px;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--ms2go-gray-700);
 }
 
 .heatmap-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
-/* Map ranking marker: large, high-contrast pin with the rank (or NF) inside. */
-.heat-pin {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 3px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(10, 31, 68, 0.45);
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 14px;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+/* Critical: Leaflet's default .leaflet-div-icon paints a white box with a gray
+   border around every divIcon. Strip it so our inline-styled marker shows as a
+   clean colored pin instead of a tiny bordered square. */
+.heat-pin-icon,
+.leaflet-div-icon.heat-pin-icon {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
-/* Leaflet's divIcon wrapper has no default styling we need; center the pin. */
-.heat-pin-wrap {
-  background: transparent;
-  border: 0;
-}
-
-/* Smaller pin used inline in the on-screen legend. */
+/* The legend pin's size/color/border are set inline so they always render even
+   if this stylesheet is overridden; this only handles inline-flow spacing. */
 .heat-pin-legend {
-  width: 26px;
-  height: 26px;
-  border-width: 2px;
-  font-size: 11px;
-  box-shadow: 0 1px 3px rgba(10, 31, 68, 0.35);
+  flex: 0 0 auto;
+}
+
+.heatmap-map-caption {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ms2go-gray-700);
+  line-height: 1.45;
 }
 
 .heatmap-cell {
@@ -1118,7 +1107,8 @@ pre.preview {
   }
 
   .heat-swatch,
-  .heat-pin,
+  .heat-pin-legend,
+  .heat-pin-icon span,
   .heatmap-print-stats > div {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

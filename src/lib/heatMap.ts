@@ -25,6 +25,17 @@ export const LEVEL_COLOR: Record<HeatLevel, string> = {
   red: "#d8362b",
 };
 
+/**
+ * Text color to print inside a marker for readable contrast against its fill.
+ * Yellow is light, so it takes near-black text; the darker fills take white.
+ */
+export const LEVEL_TEXT_COLOR: Record<HeatLevel, string> = {
+  green: "#ffffff",
+  blue: "#ffffff",
+  yellow: "#1a1a1a",
+  red: "#ffffff",
+};
+
 export const LEVEL_COPY: Record<HeatLevel, { label: string; range: string }> = {
   green: { label: "Owning it", range: "Ranks 1–3" },
   blue: { label: "Just outside", range: "Ranks 4–7" },
@@ -69,6 +80,11 @@ export function pointLabel(rank: number | null | undefined): string {
 export function markerLabel(rank: number | null | undefined): string {
   if (rank == null || rank <= 0) return "NF";
   return String(rank);
+}
+
+/** High-contrast text color for a marker label, given its heat level. */
+export function markerTextColor(level: HeatLevel): string {
+  return LEVEL_TEXT_COLOR[level];
 }
 
 /** Human-readable tooltip text for a cell. */

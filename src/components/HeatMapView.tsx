@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FC } from "react";
-import { LEVEL_COLOR, boundsOf, type MapPoint } from "../lib/heatMap";
+import { LEVEL_COLOR, boundsOf, markerTextColor, type MapPoint } from "../lib/heatMap";
 
 const LEAFLET_VERSION = "1.9.4";
 const LEAFLET_CSS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`;
@@ -32,6 +32,14 @@ declare global {
   interface Window {
     L?: LeafletStatic;
   }
+}
+
+/** Marker diameter in px: large on desktop, a touch smaller on phones. */
+function markerSize(): number {
+  if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 560px)").matches) {
+    return 36;
+  }
+  return 48;
 }
 
 function escapeHtml(value: string): string {
@@ -126,12 +134,35 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
     if (points.length === 0) return;
 
     for (const p of points) {
-      const size = 34;
+      const size = markerSize();
+      // Every visual property is inlined so the marker renders identically
+      // regardless of stylesheet load order or Leaflet's own div-icon CSS.
+      const fill = LEVEL_COLOR[p.level];
+      const text = markerTextColor(p.level);
+      const fontSize = p.marker.length >= 2 ? Math.round(size * 0.38) : Math.round(size * 0.46);
+      const style = [
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "box-sizing:border-box",
+        `width:${size}px`,
+        `height:${size}px`,
+        "border-radius:50%",
+        `background:${fill}`,
+        "border:4px solid #ffffff",
+        "box-shadow:0 0 0 2px rgba(0,0,0,0.55), 0 3px 8px rgba(0,0,0,0.5)",
+        `color:${text}`,
+        "font-family:inherit",
+        "font-weight:800",
+        `font-size:${fontSize}px`,
+        "line-height:1",
+        "text-shadow:0 1px 1px rgba(0,0,0,0.25)",
+        "-webkit-print-color-adjust:exact",
+        "print-color-adjust:exact",
+      ].join(";");
       const icon = L.divIcon({
-        className: "heat-pin-wrap",
-        html: `<span class="heat-pin heat-pin-${p.level}" style="background:${LEVEL_COLOR[p.level]}">${escapeHtml(
-          p.marker,
-        )}</span>`,
+        className: "heat-pin-icon",
+        html: `<span style="${style}">${escapeHtml(p.marker)}</span>`,
         iconSize: [size, size],
         iconAnchor: [size / 2, size / 2],
         tooltipAnchor: [0, -size / 2],
@@ -160,5 +191,13 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
     );
   }
 
-  return <div ref={containerRef} className="heatmap-map" aria-label="Local ranking map with colored ranking dots" />;
+  return (
+    <>
+      <div ref={containerRef} className="heatmap-map" aria-label="Local ranking map with colored ranking dots" />
+      <p className="heatmap-map-caption">
+        Each large colored marker shows the ranking at that spot — the number inside is the exact rank, and{" "}
+        <strong>NF</strong> means not found in the local results.
+      </p>
+    </>
+  );
 };
