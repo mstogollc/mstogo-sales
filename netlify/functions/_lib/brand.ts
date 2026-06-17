@@ -4,7 +4,7 @@ export const MS2GO_BRAND = {
     title: "Sales Lead, MS2GO",
     defaultEmail: "joe@mstogo.com",
   },
-  defaultFromEmail: "sales@ms2go.com",
+  defaultFromEmail: "sales@mstogo.com",
   defaultReplyTo: "joe@mstogo.com",
   packages: [
     {

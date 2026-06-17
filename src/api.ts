@@ -207,6 +207,8 @@ export const api = {
     subject: string;
     text: string;
     kind?: "qualification" | "prospect" | "follow_up" | "proposal";
+    businessName?: string;
+    contactName?: string;
   }) =>
     postJson<{
       kind: string;
