@@ -10,6 +10,7 @@ const LEAFLET_JS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js
 interface LeafletMap {
   setView(center: [number, number], zoom: number): LeafletMap;
   fitBounds(bounds: [[number, number], [number, number]], opts?: { padding?: [number, number]; maxZoom?: number }): void;
+  invalidateSize(opts?: { animate?: boolean } | boolean): void;
   remove(): void;
   removeLayer(layer: unknown): void;
 }
@@ -40,8 +41,17 @@ declare global {
  */
 export const MARKER_SIZE_DESKTOP = 26;
 export const MARKER_SIZE_MOBILE = 22;
+/**
+ * Printed markers are deliberately smaller than the on-screen ones. On paper the
+ * road map is what the prospect reads, so a tighter dot keeps the streets around
+ * each grid point visible while still showing the colored rank. Driving the size
+ * here (not via CSS) keeps the dot centered on its point — Leaflet anchors the
+ * icon by this size.
+ */
+export const MARKER_SIZE_PRINT = 18;
 
-function markerSize(): number {
+function markerSize(forPrint: boolean): number {
+  if (forPrint) return MARKER_SIZE_PRINT;
   if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 560px)").matches) {
     return MARKER_SIZE_MOBILE;
   }
@@ -98,6 +108,10 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<LeafletLayer[]>([]);
+  // Re-fits the current points into the map viewport. Kept in a ref so the
+  // print handler can recompute the layout for the resized print container
+  // without re-subscribing every render.
+  const fitToPointsRef = useRef<() => void>(() => {});
   const [failed, setFailed] = useState(false);
   // Flips true once the Leaflet map instance exists. The marker effect depends
   // on it so markers are (re)drawn as soon as the async map is ready — not just
@@ -105,6 +119,9 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
   // Leaflet finishes loading, the marker effect bails, and (since points never
   // change again) markers are never drawn.
   const [mapReady, setMapReady] = useState(false);
+  // True while the browser is in its print flow. Drives a marker redraw at the
+  // smaller print size so the dots don't cover roads on paper.
+  const [printing, setPrinting] = useState(false);
 
   // Create the map once Leaflet is available and the container is mounted.
   useEffect(() => {
@@ -148,7 +165,7 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
     if (points.length === 0) return;
 
     for (const p of points) {
-      const size = markerSize();
+      const size = markerSize(printing);
       // Every visual property is inlined so the marker renders identically
       // regardless of stylesheet load order or Leaflet's own div-icon CSS.
       const fill = LEVEL_COLOR[p.level];
@@ -185,17 +202,48 @@ export const HeatMapView: FC<Props> = ({ points, center }) => {
       markersRef.current.push(marker);
     }
 
-    const b = boundsOf(points);
-    if (b) {
-      map.fitBounds(
+    const fit = () => {
+      const m = mapRef.current;
+      const b = boundsOf(points);
+      if (!m || !b) return;
+      m.fitBounds(
         [
           [b.south, b.west],
           [b.north, b.east],
         ],
         { padding: [28, 28], maxZoom: 14 },
       );
-    }
-  }, [points, mapReady]);
+    };
+    fitToPointsRef.current = fit;
+    fit();
+  }, [points, mapReady, printing]);
+
+  // The printed map container is a different size than the on-screen one (the
+  // print stylesheet gives it a fixed height/width). Leaflet caches pixel
+  // positions for tiles and markers at the on-screen size, so without telling
+  // it to re-measure, the printed map renders offset with edge markers clipped.
+  // Flip the print flag (redraws dots at the print size + re-fits) and
+  // invalidateSize on the next frame to absorb the print container's dimension
+  // change before the browser paints the print preview.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onBefore = () => {
+      setPrinting(true);
+      requestAnimationFrame(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        map.invalidateSize(false);
+        fitToPointsRef.current();
+      });
+    };
+    const onAfter = () => setPrinting(false);
+    window.addEventListener("beforeprint", onBefore);
+    window.addEventListener("afterprint", onAfter);
+    return () => {
+      window.removeEventListener("beforeprint", onBefore);
+      window.removeEventListener("afterprint", onAfter);
+    };
+  }, []);
 
   if (failed) {
     return (
