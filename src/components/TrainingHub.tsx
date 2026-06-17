@@ -1,22 +1,7 @@
 import { useState, type FC } from "react";
 import { api } from "../api";
 import { PACKAGE_SYSTEMS, SPEED_TO_LEAD_PLAYBOOK } from "../lib/trainingContent";
-
-/**
- * Print only one document on a page that has several. We tag <body> with the
- * target's class so the print stylesheet can hide the others, then clear it.
- */
-function printOnly(target: "playbook" | "notes") {
-  if (typeof document === "undefined") return;
-  const cls = `printing-${target}`;
-  document.body.classList.add(cls);
-  const clear = () => {
-    document.body.classList.remove(cls);
-    window.removeEventListener("afterprint", clear);
-  };
-  window.addEventListener("afterprint", clear);
-  window.print();
-}
+import { printOnly } from "../lib/printDocument";
 
 const PackagePlaybook: FC = () => (
   <section className="card">
@@ -169,16 +154,22 @@ export const TrainingHub: FC = () => {
       {output && (
         <>
           <div className="divider" />
-          <div className="actions no-print" style={{ marginTop: 0, marginBottom: 12 }}>
-            <button className="ghost" type="button" onClick={() => printOnly("notes")}>
-              Print assistant help
+          <div className="ops-page-head no-print">
+            <div>
+              <h3 style={{ margin: 0 }}>Your assistant notes</h3>
+              <p className="subtitle" style={{ margin: "4px 0 0" }}>
+                Print a clean, branded copy to study or hand off — just the notes, none of the portal.
+              </p>
+            </div>
+            <button className="primary" type="button" onClick={() => printOnly("notes")}>
+              Print notes
             </button>
           </div>
           <div className="print-document print-doc-notes">
             <div className="print-letterhead">
               <span className="print-brand">MS2GO</span>
               <span className="print-brand-sub">
-                Assistant Help{topic.trim() ? ` · ${topic.trim()}` : ""}
+                Assistant Notes{topic.trim() ? ` · ${topic.trim()}` : ""}
               </span>
             </div>
             <pre className="preview notes-output">{output}</pre>
