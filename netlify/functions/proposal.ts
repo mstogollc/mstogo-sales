@@ -705,12 +705,21 @@ export default async (req: Request, _ctx: Context) => {
   const format: ProposalFormat = body.format === "intro" ? "intro" : "full";
   const { system, user: userPrompt } = buildProposalPrompt(body);
 
+  // The full multi-page proposal is the slowest LLM call in the app and the one
+  // that was tripping Netlify's gateway limit (504). We cap its OpenAI budget so
+  // a slow generation aborts and serves the deterministic full-package fallback
+  // instead of timing out — the rep always gets the complete proposal back. The
+  // intro letter is short, so it gets a tighter budget.
   const result = await chat(
     [
       { role: "system", content: system },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.55, maxTokens: format === "intro" ? 900 : 3200 },
+    {
+      temperature: 0.55,
+      maxTokens: format === "intro" ? 900 : 3200,
+      timeoutMs: format === "intro" ? 7000 : 8500,
+    },
     () => fallbackProposal(body),
   );
 
