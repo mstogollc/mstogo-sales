@@ -22,6 +22,7 @@ export const CommandCenter: FC<Props> = ({ onNavigate, userEmail, isSuperAdmin }
           <Quick label="Generate a lead list" desc="Find local prospects by city, industry, and radius." onClick={() => onNavigate("leads")} />
           <Quick label="Run Lead Intel" desc="Pull a pre-meeting brief on any business in seconds." onClick={() => onNavigate("intel")} />
           <Quick label="Build a proposal" desc="A branded MS2GO proposal you can send in minutes." onClick={() => onNavigate("proposal")} />
+          <Quick label="Request a demo website" desc="Have MS2GO build a demo site for your prospect." onClick={() => onNavigate("website-build")} />
           <Quick label="Draft outreach" desc="Write, polish, and send prospect emails." onClick={() => onNavigate("outreach")} />
           <Quick label="Open the pipeline" desc="Track every lead, proposal, and sale in one place." onClick={() => onNavigate("pipeline")} />
           <Quick label="Set up payouts" desc="Connect your bank for commission direct deposit." onClick={() => onNavigate("payouts")} />

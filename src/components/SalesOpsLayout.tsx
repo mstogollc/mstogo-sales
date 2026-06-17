@@ -6,6 +6,7 @@ export type SalesOpsModuleId =
   | "intel"
   | "heatmap"
   | "proposal"
+  | "website-build"
   | "outreach"
   | "calendar"
   | "pipeline"
@@ -53,6 +54,12 @@ export const SALES_OPS_NAV: NavItem[] = [
     label: "Proposal Generator",
     description: "Build branded proposals",
     path: "/sales-ops/proposals",
+  },
+  {
+    id: "website-build",
+    label: "Website Build Request",
+    description: "Request a demo site for a prospect",
+    path: "/sales-ops/website-build",
   },
   {
     id: "outreach",

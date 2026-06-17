@@ -121,6 +121,36 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return data;
 }
 
+async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(path, { headers: { ...(await authHeader()) } });
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) {
+    throw new Error((data as { error?: string }).error || `request_failed_${res.status}`);
+  }
+  return data;
+}
+
+export type WebsiteBuildStatus = "requested" | "in_progress" | "ready" | "needs_info" | "cancelled";
+
+export interface WebsiteBuildRequestRecord {
+  id: string;
+  business_name: string;
+  current_website: string | null;
+  no_website: boolean;
+  contact_name: string | null;
+  contact_email: string | null;
+  city: string | null;
+  state: string | null;
+  industry: string | null;
+  goals: string | null;
+  status: WebsiteBuildStatus;
+  preview_url: string | null;
+  notes: string | null;
+  requested_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const api = {
   analyzeLead: (body: {
     businessName?: string;
@@ -217,4 +247,25 @@ export const api = {
         | { status: "queued_local"; reason: string }
         | { status: "error"; reason: string };
     }>("/api/send-email", body),
+
+  createWebsiteBuildRequest: (body: {
+    businessName?: string;
+    currentWebsite?: string;
+    noWebsite?: boolean;
+    contactName?: string;
+    contactEmail?: string;
+    city?: string;
+    state?: string;
+    industry?: string;
+    goals?: string;
+    leadId?: string;
+    prospectId?: string;
+  }) =>
+    postJson<{ request: WebsiteBuildRequestRecord | null; persisted: boolean; status: WebsiteBuildStatus }>(
+      "/api/website-build-request",
+      body,
+    ),
+
+  listWebsiteBuildRequests: () =>
+    getJson<{ requests: WebsiteBuildRequestRecord[] }>("/api/website-build-request"),
 };

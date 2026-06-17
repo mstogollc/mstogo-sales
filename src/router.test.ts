@@ -31,6 +31,7 @@ describe("resolveRoute", () => {
     expect(resolveRoute("/sales-ops/intel")).toEqual({ id: "ops", module: "intel" });
     expect(resolveRoute("/sales-ops/heat-map")).toEqual({ id: "ops", module: "heatmap" });
     expect(resolveRoute("/sales-ops/proposals")).toEqual({ id: "ops", module: "proposal" });
+    expect(resolveRoute("/sales-ops/website-build")).toEqual({ id: "ops", module: "website-build" });
     expect(resolveRoute("/sales-ops/outreach")).toEqual({ id: "ops", module: "outreach" });
     expect(resolveRoute("/sales-ops/calendar")).toEqual({ id: "ops", module: "calendar" });
     expect(resolveRoute("/sales-ops/pipeline")).toEqual({ id: "ops", module: "pipeline" });
@@ -45,6 +46,8 @@ describe("resolveRoute", () => {
     expect(resolveRoute("/sales-ops/heatmap")).toEqual({ id: "ops", module: "heatmap" });
     expect(resolveRoute("/sales-ops/Map-Pack-Heat-Map/")).toEqual({ id: "ops", module: "heatmap" });
     expect(resolveRoute("/sales-ops/proposal")).toEqual({ id: "ops", module: "proposal" });
+    expect(resolveRoute("/sales-ops/demo-website")).toEqual({ id: "ops", module: "website-build" });
+    expect(resolveRoute("/sales-ops/website-build-request")).toEqual({ id: "ops", module: "website-build" });
   });
 
   it("falls back to the command center for unknown paths", () => {
