@@ -172,13 +172,18 @@ describe("full proposal package — the original website-build package (default 
     expect(text).not.toMatch(/directory.{0,30}(per year|one-time|activation|buildout)/i);
   });
 
-  it("has the Start Today math: website $2,500 + first month Premium $2,000 = $4,500, no directory line", () => {
+  it("aligns the Start Today total with the SELECTED package (Growth here = $3,250), no directory line", () => {
+    // The shared body recommends Growth, so the headline tier and the total must
+    // both be Growth — never Premium wording with a Growth total (the live bug).
     const text = fullProposalFallback(body);
     const start = text.slice(text.indexOf("Start Today — The Full Package"), text.indexOf("What Is Not Included"));
-    expect(start).toMatch(/Total to Start Today — \$4,500/);
+    expect(start).toMatch(/recommended Growth monthly/);
+    expect(start).toMatch(/First month of recommended Growth Package — \$750/);
+    expect(start).toMatch(/Total to Start Today — \$3,250/);
+    // The Growth proposal must NOT claim the Premium total or name Premium as the recommendation.
+    expect(start).not.toMatch(/recommended Premium/);
+    expect(start).not.toMatch(/Total to Start Today — \$4,500/);
     // No separate directory line item or charge, and no old $6,500 grand total.
-    // (The copy may reassure that directories are included — it just must not
-    // price them as a separate day-one line.)
     expect(start).not.toMatch(/director\w*.{0,40}\$[\d,]+/i);
     expect(start).not.toMatch(/\$[\d,]+.{0,20}director/i);
     expect(start).not.toMatch(/Annual Online Directory/i);
@@ -186,9 +191,43 @@ describe("full proposal package — the original website-build package (default 
     // The deposit logic for the website build is shown.
     expect(start).toMatch(/50% deposit \(\$1,250\)/);
     expect(start).toMatch(/\$1,250 is due at launch/i);
-    // Day-one alternatives for Growth and Basic are offered too.
-    expect(start).toMatch(/first month Growth/i);
-    expect(start).toMatch(/first month Basic/i);
+    // The other two tiers are offered as day-one alternatives.
+    expect(start).toMatch(/first month Premium \(\$2,000\/mo\) — \$4,500/);
+    expect(start).toMatch(/first month Basic \(\$300\/mo\) — \$2,800/);
+  });
+
+  it("Start Today math matches each tier exactly (Premium $4,500, Growth $3,250, Basic $2,800)", () => {
+    const cases: Array<{ tier: "Basic" | "Growth" | "Premium"; firstMonth: string; total: string }> = [
+      { tier: "Premium", firstMonth: "$2,000", total: "$4,500" },
+      { tier: "Growth", firstMonth: "$750", total: "$3,250" },
+      { tier: "Basic", firstMonth: "$300", total: "$2,800" },
+    ];
+    for (const { tier, firstMonth, total } of cases) {
+      const text = fullProposalFallback({ ...body, recommendedTier: tier });
+      const start = text.slice(text.indexOf("Start Today — The Full Package"), text.indexOf("What Is Not Included"));
+      expect(start, `${tier} headline`).toMatch(new RegExp(`recommended ${tier} monthly`));
+      expect(start, `${tier} first month`).toContain(`First month of recommended ${tier} Package — ${firstMonth}`);
+      expect(start, `${tier} total`).toContain(`Total to Start Today — ${total}`);
+      // The wrong tiers must never be named as the recommendation in this block.
+      for (const other of ["Basic", "Growth", "Premium"].filter((t) => t !== tier)) {
+        expect(start, `${tier} excludes recommended ${other}`).not.toMatch(
+          new RegExp(`recommended ${other} monthly`),
+        );
+      }
+      expect(start, `${tier} no $6,500`).not.toMatch(/\$6,500/);
+      expect(start, `${tier} no directory charge`).not.toMatch(/\$[\d,]+.{0,20}director/i);
+    }
+  });
+
+  it("the prompt injects the SELECTED tier's exact Start Today block to resist LLM math drift", () => {
+    // Growth body: the prompt must carry the Growth total/wording verbatim and
+    // must not instruct the model to use the Premium total on a Growth proposal.
+    const { system, user } = buildProposalPrompt({ ...body, format: "full" });
+    expect(system).toMatch(/Reproduce the following block EXACTLY/i);
+    expect(system).toMatch(/Total to Start Today — \$3,250/);
+    expect(system).toMatch(/First month of recommended Growth Package — \$750/);
+    expect(system).not.toMatch(/Total to Start Today — \$4,500/);
+    expect(user).toMatch(/Start Today total .*first month Growth \$750.*: \$3,250/);
   });
 
   it("the full-package prompt instructs the website build cost, page map, features, and Start Today math", () => {
@@ -198,8 +237,9 @@ describe("full proposal package — the original website-build package (default 
     expect(system).toMatch(/50% deposit \(\$1,250\)/);
     expect(system).toMatch(/Proposed Page Map/);
     expect(system).toMatch(/Industry-Standard Features — FIVE subsections/i);
-    // Start Today math: website + first month Premium = $4,500, no directory line.
-    expect(system).toMatch(/\$4,500 to start today/i);
+    // Start Today math is injected verbatim for the SELECTED tier (Growth here),
+    // with NO separate directory line and no old $6,500 total.
+    expect(system).toMatch(/Total to Start Today — \$3,250/);
     expect(system).toMatch(/NO separate directory line item/i);
     expect(system).not.toMatch(/\$6,500/);
     expect(system).toMatch(/included in Basic, Growth, and Premium/i);
@@ -301,12 +341,14 @@ describe("no-website handling never invents a URL (both formats)", () => {
   });
 
   it("the full website-build proposal still carries its fixed prices even with no website", () => {
+    // No recommendedTier provided → defaults to Growth, so the day-one total is
+    // website $2,500 + Growth $750 = $3,250 (the selected-tier math).
     const base: ProposalBody = { businessName: "Coastal Cafe", city: "Gulfport", state: "MS", noWebsite: true };
     const full = fullProposalFallback(base);
     expect(full).toMatch(/\$5,000/);
     expect(full).toMatch(/\$2,500/);
     expect(full).toMatch(/\$1,250/);
-    expect(full).toMatch(/Total to Start Today — \$4,500/);
+    expect(full).toMatch(/Total to Start Today — \$3,250/);
     // The old $6,500 directory-inclusive grand total is gone.
     expect(full).not.toMatch(/\$6,500/);
   });
