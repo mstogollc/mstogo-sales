@@ -128,6 +128,10 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
     }
   }
 
+  function isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
   async function handleEmailProposal() {
     setError(null);
     setEmailStatus(null);
@@ -135,29 +139,42 @@ export const ProposalBuilder: FC<Props> = ({ analysis }) => {
       setError("Build the proposal first, then email it.");
       return;
     }
-    if (!recipientEmail.trim()) {
+    const to = recipientEmail.trim();
+    if (!to) {
       setError("Add the recipient's email address to send this proposal.");
+      return;
+    }
+    if (!isValidEmail(to)) {
+      setError(`That doesn't look like a valid email address. Double-check "${to}" and try again.`);
       return;
     }
     setEmailing(true);
     try {
       const res = await api.sendEmail({
-        to: recipientEmail.trim(),
+        to,
         subject: `Your MS2GO proposal${businessName ? ` for ${businessName}` : ""}`,
         text: output,
         kind: "proposal",
+        businessName: businessName || undefined,
+        contactName: contactName || undefined,
       });
       if (res.delivery.status === "sent") {
-        setEmailStatus(`Sent to ${recipientEmail.trim()} — Resend confirmed delivery.`);
+        setEmailStatus(`Proposal sent to ${to}. They should have it in their inbox within a minute.`);
       } else if (res.delivery.status === "queued_local") {
-        setEmailStatus(
-          "Saved and ready to send. Email delivery (Resend) isn't connected on this workspace yet — once the MS2GO sending domain is verified, this proposal goes out automatically.",
+        // Email delivery isn't live on this workspace yet. Keep the copy
+        // sales-facing — never surface backend/config details to reps.
+        setError(
+          "Email sending isn't switched on for your account yet. Use Print / Save as PDF and send it from your own email for now, and let your MS2GO admin know so we can turn on direct sending.",
         );
       } else {
-        setError(`Could not send the proposal: ${res.delivery.reason}`);
+        setError(
+          `We couldn't send that proposal — please try again in a moment. If it keeps failing, use Print / Save as PDF and email it directly while we look into it.`,
+        );
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not email the proposal.");
+    } catch {
+      setError(
+        "We couldn't send that proposal — please check your connection and try again. You can also use Print / Save as PDF and email it directly.",
+      );
     } finally {
       setEmailing(false);
     }

@@ -1,6 +1,6 @@
 import type { Context } from "@netlify/functions";
 import { ok, badRequest, methodNotAllowed, readJson } from "./_lib/http";
-import { sendEmail } from "./_lib/resend";
+import { sendEmail, proposalEmailHtml } from "./_lib/resend";
 import { currentUser, tryPersist } from "./_lib/supabase";
 import { actorFromUser, logUsage } from "./_lib/usage";
 
@@ -14,6 +14,8 @@ interface SendBody {
   kind?: "qualification" | "prospect" | "follow_up" | "proposal";
   leadId?: string;
   prospectId?: string;
+  businessName?: string;
+  contactName?: string;
 }
 
 function isEmail(value: string): boolean {
@@ -38,11 +40,24 @@ export default async (req: Request, _ctx: Context) => {
   if (!body.subject?.trim()) return badRequest("missing_subject");
   if (!body.text?.trim()) return badRequest("missing_text");
 
+  // For proposals, send a warm, branded HTML email wrapping the proposal copy
+  // (unless the caller already supplied custom HTML). The plain-text version is
+  // always included as a fallback for clients that don't render HTML.
+  const html =
+    body.html ??
+    (body.kind === "proposal"
+      ? proposalEmailHtml({
+          proposalText: body.text,
+          businessName: body.businessName,
+          contactName: body.contactName,
+        })
+      : undefined);
+
   const result = await sendEmail({
     to: recipients,
     subject: body.subject,
     text: body.text,
-    html: body.html,
+    html,
     from: body.from,
     replyTo: body.replyTo,
   });
