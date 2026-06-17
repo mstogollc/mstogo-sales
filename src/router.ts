@@ -19,6 +19,7 @@ const OPS_PATHS: Record<string, SalesOpsModuleId> = {
   "/sales-ops/intel": "intel",
   "/sales-ops/heat-map": "heatmap",
   "/sales-ops/proposals": "proposal",
+  "/sales-ops/website-build": "website-build",
   "/sales-ops/outreach": "outreach",
   "/sales-ops/calendar": "calendar",
   "/sales-ops/pipeline": "pipeline",
@@ -34,6 +35,10 @@ const OPS_PATH_ALIASES: Record<string, SalesOpsModuleId> = {
   "/sales-ops/map-pack-heat-map": "heatmap",
   "/sales-ops/heatmap": "heatmap",
   "/sales-ops/proposal": "proposal",
+  "/sales-ops/demo": "website-build",
+  "/sales-ops/demo-website": "website-build",
+  "/sales-ops/demo-request": "website-build",
+  "/sales-ops/website-build-request": "website-build",
 };
 
 export function resolveRoute(pathname: string): Route {

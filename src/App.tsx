@@ -3,6 +3,7 @@ import { LeadAnalyzer } from "./components/LeadAnalyzer";
 import { LeadListGenerator, createLeadSearchState, type LeadSearchState } from "./components/LeadListGenerator";
 import { EmailComposer } from "./components/EmailComposer";
 import { ProposalBuilder } from "./components/ProposalBuilder";
+import { WebsiteBuildRequest } from "./components/WebsiteBuildRequest";
 import { MapPackHeatMap } from "./components/MapPackHeatMap";
 import { TrainingHub } from "./components/TrainingHub";
 import { PipelineDashboard } from "./components/PipelineDashboard";
@@ -118,6 +119,7 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
       )}
       {safeModule === "heatmap" && <MapPackHeatMap />}
       {safeModule === "proposal" && <ProposalBuilder analysis={analysis} />}
+      {safeModule === "website-build" && <WebsiteBuildRequest analysis={analysis} />}
       {safeModule === "outreach" && <EmailComposer analysis={analysis} />}
       {safeModule === "calendar" && <AppointmentCalendar />}
       {safeModule === "pipeline" && <PipelineDashboard />}
