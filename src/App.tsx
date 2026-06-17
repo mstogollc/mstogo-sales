@@ -113,7 +113,9 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
           onUseLead={() => navigate("intel")}
         />
       )}
-      {safeModule === "intel" && <LeadAnalyzer onAnalysisReady={setAnalysis} />}
+      {safeModule === "intel" && (
+        <LeadAnalyzer onAnalysisReady={setAnalysis} onGenerateProposal={() => navigate("proposal")} />
+      )}
       {safeModule === "heatmap" && <MapPackHeatMap />}
       {safeModule === "proposal" && <ProposalBuilder analysis={analysis} />}
       {safeModule === "outreach" && <EmailComposer analysis={analysis} />}

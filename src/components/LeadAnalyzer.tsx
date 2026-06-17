@@ -6,9 +6,11 @@ import { updateActiveProspect, useActiveProspect } from "../lib/prospect";
 
 interface Props {
   onAnalysisReady: (analysis: AnalyzeResponse) => void;
+  /** Jump to the Proposal Generator, carrying this prospect's details along. */
+  onGenerateProposal?: () => void;
 }
 
-export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
+export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady, onGenerateProposal }) => {
   const prospect = useActiveProspect();
   const [businessName, setBusinessName] = useState(prospect?.businessName ?? "");
   const [website, setWebsite] = useState(prospect?.website ?? "");
@@ -74,6 +76,23 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
       setLoading(false);
     }
   }
+
+  function handleGenerateProposal() {
+    // Carry whatever the rep has on screen into the shared prospect record so the
+    // Proposal Generator opens pre-filled — even if they jumped straight here
+    // without running the analysis. Verified analysis fields already persisted in
+    // handleAnalyze are preserved; we only fill the basics the rep typed.
+    updateActiveProspect({
+      businessName: businessName.trim() || undefined,
+      website: noWebsite ? undefined : website.trim() || undefined,
+      noWebsite,
+      city: city.trim() || undefined,
+      state: state.trim() || undefined,
+    });
+    onGenerateProposal?.();
+  }
+
+  const canGenerateProposal = Boolean(businessName.trim() || result);
 
   const allSignals: PlaceSignal[] = result
     ? [...result.placeProfile.signals, ...(result.seoSnapshot.rankSignals || [])]
@@ -173,6 +192,16 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
           <button className="primary" onClick={handleAnalyze} disabled={loading}>
             {loading ? "Running analysis…" : "Analyze lead"}
           </button>
+          {onGenerateProposal && (
+            <button
+              className="ghost"
+              type="button"
+              onClick={handleGenerateProposal}
+              disabled={!canGenerateProposal}
+            >
+              Generate Proposal
+            </button>
+          )}
           {result && <Indicator level={result.placeProfile.overall} />}
         </div>
         {error && <p className="error">{error}</p>}
@@ -199,6 +228,11 @@ export const LeadAnalyzer: FC<Props> = ({ onAnalysisReady }) => {
                 <p className="subtitle">Plain-English read on this prospect.</p>
               </div>
               <div className="actions no-print" style={{ marginTop: 0 }}>
+                {onGenerateProposal && (
+                  <button className="primary" type="button" onClick={handleGenerateProposal}>
+                    Generate Proposal
+                  </button>
+                )}
                 <button className="ghost" type="button" onClick={() => window.print()}>
                   Print notes
                 </button>
