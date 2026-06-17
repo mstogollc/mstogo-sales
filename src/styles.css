@@ -1167,6 +1167,23 @@ pre.preview {
     print-color-adjust: exact;
   }
 
+  /* Root cause of the gray print box: print color rendering re-paints Leaflet's
+     default .leaflet-div-icon wrapper (white fill + gray border) behind every
+     marker. Strip the wrapper to nothing in print so ONLY the inline-styled
+     colored circle (the span) prints over the road map. Scoped to the heat map
+     and color-locked so it can't be undone by the reveal rules above. */
+  .heatmap-printable-map .leaflet-marker-icon,
+  .heatmap-printable-map .leaflet-div-icon,
+  .heatmap-printable-map .heat-pin-icon,
+  .heatmap-printable-map .leaflet-div-icon.heat-pin-icon {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* The map carries its own large markers; the screen caption is redundant in
      print (the legend + table below explain the colors). */
   .heatmap-printable-map .heatmap-map-caption {

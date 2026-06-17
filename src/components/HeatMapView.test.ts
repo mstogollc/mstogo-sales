@@ -44,3 +44,32 @@ describe("printable heat map wiring", () => {
     expect(heatMapSrc).toContain("Wait for the map to finish loading before printing.");
   });
 });
+
+describe("print marker box is stripped (no gray square behind printed pins)", () => {
+  // The printed map showed a gray/white square behind every colored pin because
+  // print color rendering re-painted Leaflet's default .leaflet-div-icon wrapper
+  // (white fill + gray border). The print stylesheet must strip that wrapper to
+  // transparent with no border, scoped to the printable heat map, so only the
+  // colored circle prints. These assertions guard that fix from regressing.
+  const stylesSrc = readFileSync(
+    fileURLToPath(new URL("../styles.css", import.meta.url)),
+    "utf8",
+  );
+
+  const printBlock = stylesSrc.slice(stylesSrc.indexOf("@media print"));
+
+  it("targets the Leaflet div-icon wrapper inside the printable map in print", () => {
+    expect(printBlock).toMatch(/\.heatmap-printable-map \.leaflet-div-icon/);
+  });
+
+  it("forces the printed marker wrapper to a transparent, borderless box", () => {
+    // Pull the rule block that strips the wrapper and assert it neutralizes the
+    // default gray box (transparent background, no border, no box-shadow).
+    const at = printBlock.indexOf(".heatmap-printable-map .leaflet-marker-icon");
+    expect(at).toBeGreaterThan(-1);
+    const rule = printBlock.slice(at, at + 400);
+    expect(rule).toMatch(/background:\s*transparent\s*!important/);
+    expect(rule).toMatch(/border:\s*0\s*!important/);
+    expect(rule).toMatch(/box-shadow:\s*none\s*!important/);
+  });
+});
