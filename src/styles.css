@@ -1132,7 +1132,11 @@ pre.preview {
   .heatmap-printable-map {
     display: block;
     position: static;
-    margin: 0 0 14px;
+    /* Center the printed map within the page content box and cap its width so
+       it never bleeds toward one side. auto side margins do the centering. */
+    width: 100%;
+    max-width: 6.5in;
+    margin: 0 auto 14px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -1152,7 +1156,11 @@ pre.preview {
     height: 3.6in;
     border: 1px solid var(--ms2go-gray-200);
     border-radius: 8px;
-    overflow: hidden;
+    /* On screen the map clips to a rounded box. In print, Leaflet re-fits the
+       points to this exact box (see the beforeprint reflow in HeatMapView), but
+       allowing overflow keeps any marker that sits right on the fitted edge from
+       being clipped by a hair, so all grid markers stay fully visible. */
+    overflow: visible;
   }
 
   /* Make sure every Leaflet layer (tiles, markers, tooltips) renders to paper. */
@@ -1175,11 +1183,29 @@ pre.preview {
   .heatmap-printable-map .leaflet-marker-icon,
   .heatmap-printable-map .leaflet-div-icon,
   .heatmap-printable-map .heat-pin-icon,
-  .heatmap-printable-map .leaflet-div-icon.heat-pin-icon {
+  .heatmap-printable-map .leaflet-div-icon.heat-pin-icon,
+  .heatmap-printable-map .leaflet-shadow-pane,
+  .heatmap-printable-map .leaflet-marker-shadow {
     background: transparent !important;
     background-color: transparent !important;
     border: 0 !important;
     box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* The actual dark "halo/box" the rep still saw is NOT the Leaflet wrapper —
+     it's the inline drop-shadow + dark outline ring baked onto the marker span
+     itself (set in HeatMapView so it reads on screen). In print that shadow
+     paints a gray blob that swallows the streets around each dot. Kill the
+     shadow and thin the heavy white ring so only a clean colored dot prints.
+     The dot keeps its JS-driven size so it stays centered on its grid point
+     (Leaflet anchors the icon by that size); print marker size is handled in
+     HeatMapView. !important is required to beat the inline style. */
+  .heatmap-printable-map .heat-pin-icon span {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-width: 1px !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
