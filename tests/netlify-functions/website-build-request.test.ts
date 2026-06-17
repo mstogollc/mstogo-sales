@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import handler from "./website-build-request";
+import handler from "../../netlify/functions/website-build-request";
 
 const ctx = {} as never;
 
