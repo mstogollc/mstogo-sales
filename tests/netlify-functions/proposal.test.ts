@@ -90,6 +90,7 @@ describe("full proposal package — the original website-build package (default 
       "Industry-Standard Features",
       "Investment — Your Website Build",
       "Monthly Service Options",
+      "How We Grow Your Business — What Each Service Does for You",
       "Online Directory Visibility",
       "Start Today — The Full Package",
       "What Is Not Included in the Initial Build",
@@ -256,6 +257,61 @@ describe("full proposal package — the original website-build package (default 
     expect(core).toMatch(/on-page SEO|SEO foundation/i);
     expect(core).toMatch(/training/i);
     expect(core.split("\n").filter((l) => l.trim().startsWith("•")).length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("Fast Track copy reads 'we can put this project on' in both the callout and the timeline", () => {
+    const text = fullProposalFallback(body);
+    // The accelerated-schedule sentence must include the word "can" between "we" and "put".
+    expect(text).toMatch(/we can put this project on an accelerated one-week build schedule/i);
+    expect(text).toMatch(/we can put this project on an accelerated one-week schedule/i);
+    // The old missing-word phrasing must be gone everywhere.
+    expect(text).not.toMatch(/\bwe put this project on\b/i);
+  });
+
+  it("the Investment section is not redundant — no repeated 'Total Website Investment' label", () => {
+    const text = fullProposalFallback(body);
+    const invest = text.slice(
+      text.indexOf("Investment — Your Website Build"),
+      text.indexOf("Monthly Service Options"),
+    );
+    // The redundant restatements of the same number/idea are removed.
+    expect(invest).not.toMatch(/Total Website Investment/i);
+    expect(invest).not.toMatch(/Website design, development, and launch \(all core deliverables\)/i);
+    // The introductory price still appears exactly once as the headline price, not three times.
+    expect((invest.match(/\$2,500/g) ?? []).length).toBe(1);
+    // Pricing facts are still present and accurate.
+    expect(invest).toMatch(/\$5,000/);
+    expect(invest).toMatch(/50% deposit \(\$1,250\)/);
+    expect(invest).toMatch(/due at launch/i);
+  });
+
+  it("has a prospect-facing 'How We Grow Your Business' service explainer", () => {
+    const text = fullProposalFallback(body);
+    const section = text.slice(
+      text.indexOf("How We Grow Your Business — What Each Service Does for You"),
+      text.indexOf("Online Directory Visibility"),
+    );
+    // Each marketing service the owner is buying is explained in plain language.
+    expect(section).toMatch(/Local SEO & Google Map Pack/);
+    expect(section).toMatch(/Industry SEO & Website Content/);
+    expect(section).toMatch(/Business Directories & Listings/);
+    expect(section).toMatch(/Paid Ads & Google Local Services Ads/);
+    expect(section).toMatch(/AI Search Optimization/);
+    expect(section).toMatch(/Reviews & Reputation/);
+    expect(section).toMatch(/Follow-Up & Speed-to-Lead/);
+    // It is written as owner-facing value copy, never backend/dev wording.
+    expect(section).not.toMatch(/\bAPI\b|endpoint|backend|database|prompt|model/i);
+    // It frames the value (get found, get chosen, no lead lost), not just a feature list.
+    expect(section).toMatch(/get you found/i);
+    expect(section).toMatch(/no lead is lost|conversion/i);
+  });
+
+  it("the full-package prompt instructs the prospect-facing service explainer section", () => {
+    const { system } = buildProposalPrompt({ ...body, format: "full" });
+    expect(system).toMatch(/How We Grow Your Business — What Each Service Does for You/);
+    expect(system).toMatch(/Local Services Ads/);
+    expect(system).toMatch(/AI Search Optimization/);
+    expect(system).toMatch(/no API\/dev\/backend wording/i);
   });
 });
 

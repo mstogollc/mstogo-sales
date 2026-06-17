@@ -188,6 +188,38 @@ function monthlyServiceSection(recommendedTier: MS2GOPackage["tier"]): string {
 }
 
 /**
+ * "How We Grow Your Business" — the prospect-facing value section. The monthly
+ * packages list WHAT you get; this section explains, in plain owner language, what
+ * each marketing service actually is and how MS2GO uses it to bring the business
+ * more customers. It mirrors the new-rep training explainer but is written for the
+ * business owner, not the developer — no backend, API, or dev wording. The copy is
+ * sourced from PROPOSAL_SYSTEMS so the sales-facing benefit language stays in one
+ * place and never drifts from what the team is trained to sell.
+ */
+function growthSystemsSection(): string {
+  const lines = [
+    "How We Grow Your Business — What Each Service Does for You",
+    "  A website gets you in the game; these are the services that actually bring customers through the",
+    "  door. Here is what each one is, in plain English, and exactly how MS2GO uses it to grow your",
+    "  business. Every service below is available in your monthly package — the level you choose simply",
+    "  decides how many of them we run for you and how aggressively.",
+    "",
+  ];
+  for (const system of PROPOSAL_SYSTEMS) {
+    lines.push(`  • ${system.name}`);
+    lines.push(`      ${system.benefit}`);
+  }
+  lines.push("");
+  lines.push(
+    "  In short: we get you found (SEO, directories, AI search), we get you chosen (reviews, paid ads,",
+  );
+  lines.push(
+    "  Local Services Ads, social), and we make sure no lead is lost (conversion tools, instant follow-up).",
+  );
+  return lines.join("\n");
+}
+
+/**
  * The one-time website BUILD investment section — the piece Justin flagged as
  * missing from the rebuilt proposal. Standard build $5,000, introductory 50% off
  * to $2,500, 50% deposit ($1,250) to begin, remaining balance due at launch. This
@@ -197,17 +229,17 @@ function monthlyServiceSection(recommendedTier: MS2GOPackage["tier"]): string {
 function investmentSection(): string {
   return [
     "Investment — Your Website Build",
-    `  Our standard website build is ${usd(WEBSITE_BUILD.standard)}. As an introductory partnership offer we are`,
-    `  reducing the total investment by 50% to ${usd(WEBSITE_BUILD.introductory)} — so you can launch a real,`,
-    "  professionally-built site and start routing quote requests into the business right away.",
+    `  Standard build: ${usd(WEBSITE_BUILD.standard)}.  Your introductory price: ${usd(WEBSITE_BUILD.introductory)} — a 50% partnership discount.`,
+    "  That one price covers the entire build, start to finish — design, development, launch, and everything",
+    "  below — so you can get a real, professionally-built site live and routing quote requests right away.",
     "",
-    `  • Website design, development, and launch (all core deliverables) — ${usd(WEBSITE_BUILD.standard)} standard, ${usd(WEBSITE_BUILD.introductory)} introductory`,
-    "  • Content collaboration and copy guidance — Included",
-    "  • Training, handoff, and a written quick-start guide — Included",
-    "  • 30 days of post-launch support for bug fixes — Included",
+    "  Everything included for that price:",
+    "  • Full design, development, and launch of every page in the proposed site.",
+    "  • Content collaboration and copy guidance.",
+    "  • Training, handoff, and a written quick-start guide.",
+    "  • 30 days of post-launch support for bug fixes.",
     "",
-    `  Total Website Investment (Introductory Offer — 50% Off): ${usd(WEBSITE_BUILD.introductory)}`,
-    `  Payment terms: 50% deposit (${usd(WEBSITE_BUILD.deposit)}) to begin work, with the remaining 50% due at launch.`,
+    `  Payment terms: a 50% deposit (${usd(WEBSITE_BUILD.deposit)}) begins the work, with the remaining 50% due at launch.`,
     "  We accept check, ACH, or credit card.",
   ].join("\n");
 }
@@ -317,7 +349,7 @@ export function fullProposalFallback(body: ProposalBody): string {
   // 3. FAST TRACK
   const fastTrack = [
     "FAST TRACK",
-    "  We put this project on an accelerated one-week build schedule. From kickoff to a live,",
+    "  We can put this project on an accelerated one-week build schedule. From kickoff to a live,",
     "  public-facing website, the total turnaround is seven days — so your new site is live and",
     "  capturing search traffic before your competitors' is.",
   ].join("\n");
@@ -495,6 +527,8 @@ export function fullProposalFallback(body: ProposalBody): string {
     "",
     monthlyServiceSection(tier.tier),
     "",
+    growthSystemsSection(),
+    "",
     directorySection(),
     "",
     startTodaySection(tier.tier),
@@ -534,7 +568,7 @@ function timelineSection(): string {
   return [
     "Project Timeline — One-Week Fast Track",
     "  Because every day without a real digital presence is a day of quote requests going to competitors,",
-    "  we put this project on an accelerated one-week schedule. From kickoff, the site goes live within seven days.",
+    "  we can put this project on an accelerated one-week schedule. From kickoff, the site goes live within seven days.",
     "  • Day 1 — Kickoff call, brand discovery, asset collection, domain/hosting planning, content questionnaire.",
     "  • Day 2 — Homepage design concept finalized; sitemap confirmed; copy drafting begins.",
     "  • Days 3–4 — Full design and build of all pages; schema markup, forms, SEO foundation, analytics implemented.",
@@ -602,22 +636,27 @@ export function buildProposalPrompt(body: ProposalBody): { system: string; user:
       `11. Monthly Service Options — list ALL three monthly packages (${monthlyList}), mark the recommended one, and under each ` +
       "spell out in plain English what that money buys. Month-to-month, no setup fees, cancel anytime with 30 days' notice. " +
       "Directory visibility is included in every package — never present directories as an add-on or a separate charge.\n" +
-      "12. Online Directory Visibility — Included in Every Package. State plainly that directory visibility is included in " +
+      "12. How We Grow Your Business — What Each Service Does for You. A prospect-facing explainer, in plain owner " +
+      "language (no API/dev/backend wording), of what each marketing service is and how MS2GO uses it to bring in more " +
+      "customers. Cover, at minimum: Local SEO & Google Map Pack, Industry SEO & website content, Business Directories & " +
+      "Listings, Paid Ads & Google Local Services Ads, AI Search Optimization, Reviews & Reputation, and Follow-Up & " +
+      "Speed-to-Lead conversion/lead capture. For each, say what it is and the business result it drives.\n" +
+      "13. Online Directory Visibility — Included in Every Package. State plainly that directory visibility is included in " +
       "Basic, Growth, and Premium at no extra cost, and that each package includes the directory foundation appropriate to that " +
       "tier (Premium includes the most aggressive management, cleanup, and expansion). Do NOT present any separate one-time or " +
       "annual directory fee.\n" +
-      "13. Start Today — the day-one math, with NO separate directory line item (directories are included in the monthly " +
+      "14. Start Today — the day-one math, with NO separate directory line item (directories are included in the monthly " +
       "package). The total MUST equal the website build plus the FIRST MONTH OF THE RECOMMENDED PACKAGE — never mix a " +
       "package name with a different package's total. Reproduce the following block EXACTLY, word for word and number for " +
       "number; do not change the tier name, any price, or the total:\n" +
       "-----\n" +
       startTodaySection(recommended.tier) +
       "\n-----\n" +
-      `14. What Is Not Included in the Initial Build — keep the ${usd(WEBSITE_BUILD.introductory)} fee transparent.\n` +
-      "15. Project Timeline — One-Week Fast Track (Day 1 through Day 7).\n" +
-      "16. Why MS2GO.\n" +
-      "17. Next Steps — review & sign, submit the deposit, schedule kickoff, provide assets.\n" +
-      "18. Agreement & Acceptance — a signature block for the client and 'Justin Pearce, Owner, MS2GO LLC'.\n" +
+      `15. What Is Not Included in the Initial Build — keep the ${usd(WEBSITE_BUILD.introductory)} fee transparent.\n` +
+      "16. Project Timeline — One-Week Fast Track (Day 1 through Day 7).\n" +
+      "17. Why MS2GO.\n" +
+      "18. Next Steps — review & sign, submit the deposit, schedule kickoff, provide assets.\n" +
+      "19. Agreement & Acceptance — a signature block for the client and 'Justin Pearce, Owner, MS2GO LLC'.\n" +
       "Where it helps, you may reference the MS2GO growth systems (" + growthSystemList + ") inside the relevant sections. " +
       "Aim for two to four pages. Every dollar figure above is fixed — do not change any price. ";
 
