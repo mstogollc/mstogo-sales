@@ -14,14 +14,34 @@ All third-party calls live in `netlify/functions/_lib/*` so API keys never reach
 
 | Provider | Env var(s) | Used by |
 | --- | --- | --- |
-| **Supabase** (CRM, auth, RLS, audit log) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server) · `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (browser) | `analyze-lead`, `draft-email`, `send-email`, `proposal`, `qualify-lead`, `dashboard` |
-| Google Places (New) | `GOOGLE_PLACES_API_KEY` | `analyze-lead`, `heat-map` |
-| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | `analyze-lead`, `heat-map` |
-| OpenAI | `OPENAI_API_KEY` | `analyze-lead`, `draft-email`, `rewrite`, `proposal`, `training-content` |
+| **Supabase** (CRM, auth, RLS, audit log) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server) · `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PORTAL_URL` (browser) | `analyze-lead`, `dashboard`, `draft-email`, `generate-leads`, `heat-map`, `plaid-*`, `proposal`, `qualify-lead`, `send-email`, `usage-dashboard`, `website-build-request` |
+| Google Places (New) | `GOOGLE_PLACES_API_KEY` | `analyze-lead`, `generate-leads` (fallback), `heat-map` |
+| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | `analyze-lead`, `generate-leads`, `heat-map` |
+| OpenAI | `OPENAI_API_KEY`, optional `OPENAI_TIMEOUT_MS` (default 8000) | `analyze-lead`, `draft-email`, `rewrite`, `proposal`, `training-content` |
 | Resend | `RESEND_API_KEY`, optional `MS2GO_FROM_EMAIL`, `MS2GO_REPLY_TO` | `send-email` |
-| Calendly | `CALENDLY_PERSONAL_ACCESS_TOKEN` | (reserved for booking flow) |
+| Calendly | `VITE_CALENDLY_URL` (public booking link), `CALENDLY_PERSONAL_ACCESS_TOKEN` (reserved) | Appointments view |
 | Dropbox Sign | `DROPBOX_SIGN_API_KEY` | `dropbox-sign-callback` |
 | **Plaid** (rep direct-deposit verification) | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` | `plaid-create-link-token`, `plaid-exchange-token` |
+| **Gusto** (payroll OAuth + webhooks) | `GUSTO_CLIENT_ID`, `GUSTO_CLIENT_SECRET`, `GUSTO_WEBHOOK_SECRET` | `gusto-webhook`, `/gusto/oauth/callback` page |
+
+`.env.example` lists every variable with comments.
+
+### Gusto — OAuth callback and webhook
+
+- OAuth redirect URI: `https://portal.mstogo.com/gusto/oauth/callback` (branded page that handles `?code` / `?error`).
+- Webhook URL: `https://portal.mstogo.com/.netlify/functions/gusto-webhook`. When `GUSTO_WEBHOOK_SECRET` is set, each body is verified with HMAC-SHA256 against the `X-Gusto-Signature` header.
+
+### DocuSign — OAuth pages
+
+The app serves branded landing pages at `/docusign/oauth/callback` and `/docusign/consent-complete` for the DocuSign OAuth and consent redirects. No server-side DocuSign function or env var exists yet.
+
+### Admin-only: Usage & Cost dashboard
+
+`/sales-ops/admin/usage` (backed by `usage-dashboard`) shows portal activity and estimated vendor usage per rep. Only super admins and users whose profile role is `super_admin` or `manager` can see it. The UI hides it and the function returns 403 for everyone else. It is an estimate ledger, not a billing feed.
+
+### Website build requests
+
+`website-build-request` lets a rep ask MS2GO to build a demo or first website for a prospect (`POST`) and track their requests (`GET`; managers and admins see all). Fulfillment is a manual step that flips the status to ready.
 
 ### Dropbox Sign account callback
 
@@ -54,7 +74,12 @@ The full schema, RLS policies, and audit log live in
 [`supabase/migrations/20260523000000_init_crm_foundation.sql`](supabase/migrations/20260523000000_init_crm_foundation.sql).
 
 See [`docs/APPLY_MIGRATION.md`](docs/APPLY_MIGRATION.md) for the exact steps to
-apply it to project `izoveptctxypwmyvavyg`.
+apply it to project `izoveptctxypwmyvavyg`. Later migrations in the same folder
+apply in filename order:
+
+- `20260524000000_rep_payout_accounts.sql` — Plaid payout summaries
+- `20260605000000_usage_tracking.sql` — `usage_events` for the Usage dashboard
+- `20260617000000_website_build_requests.sql` — website build requests
 
 Highlights:
 
