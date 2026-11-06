@@ -52,8 +52,12 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
   useEffect(() => {
     if (!supabase) return;
     const client = supabase;
+    // Only the most recent lookup may set the role, so a slow response for a
+    // previous user (e.g. one who just signed out) can't restore their role.
+    let latestLookup = 0;
 
     async function loadRole(userId: string | undefined) {
+      const lookup = ++latestLookup;
       if (!userId) {
         setRole(null);
         return;
@@ -63,6 +67,7 @@ const OpsApp: FC<OpsAppProps> = ({ initialModule }) => {
         .select("role")
         .eq("id", userId)
         .single();
+      if (lookup !== latestLookup) return;
       setRole((data?.role as string | undefined) ?? null);
     }
 
